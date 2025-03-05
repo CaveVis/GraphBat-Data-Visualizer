@@ -139,7 +139,14 @@ class Ui_MainWindow(object):
 
     def readData(self):
         #Function to read csv data
-        self.df = pd.read_csv(self.filename,encoding = 'utf-8').fillna(0)
+        self.df = pd.read_csv(self.filename,
+                              encoding = 'utf-8',
+                              parse_dates =[0],
+                              infer_datetime_format=True
+                              ).fillna(0)
+
+        self.df.columns = ["Datetime", "Temperature"]
+        self.df.set_index("Datetime", inplace=True)
         self.update(self.themes[0])
 
 
