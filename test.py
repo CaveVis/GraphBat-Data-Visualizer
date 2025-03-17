@@ -15,7 +15,6 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use('Qt5Agg')
-from PyQt5 import QtCore,QtWidgets
 from PyQt5.QtWidgets import QFileDialog
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
 from matplotlib.figure import Figure
@@ -78,6 +77,26 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionExit)
         self.menubar.addAction(self.menuFile.menuAction())
 
+        self.createProB = QtWidgets.QPushButton(self.centralwidget)
+        self.createProB.setObjectName("createProB")
+        self.createProB.setText("Create Project")
+        self.horizontalLayout.addWidget(self.createProB)
+
+        self.saveProB = QtWidgets.QPushButton(self.centralwidget)
+        self.saveProB.setObjectName("saveProB")
+        self.saveProB.setText("Save Project")
+        self.horizontalLayout.addWidget(self.saveProB)
+
+        self.loadProB = QtWidgets.QPushButton(self.centralwidget)
+        self.loadProB.setObjectName("loadProB")
+        self.loadProB.setText("Load Project")
+        self.horizontalLayout.addWidget(self.loadProB)
+
+
+
+
+
+
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
@@ -85,9 +104,9 @@ class Ui_MainWindow(object):
 
         #Setting up file name var, canvas, dataframe and toolbar
 
-        self.filename =''
+        self.filenames =''
         self.canv = MatplotlibCanvas(self)
-        self.df = []
+        self.df = pd.DataFrame()
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
 
@@ -96,6 +115,39 @@ class Ui_MainWindow(object):
         #Start of button codes
         self.pushButton.clicked.connect(self.getFile)
         self.comboBox.currentIndexChanged['QString'].connect(self.update)
+        self.createProB.clicked.connect(self.createP)
+        self.saveProB.clicked.connect(self.saveP)
+        self.loadProB.clicked.connect(self.loadP)
+
+    def createP(self):
+        f =QFileDialog.getExistingDirectory(None,"Select Project Folder")
+        if f:
+            self.pFold =f
+            self.pData ={
+                "pf":self.pFold, "files":[]}
+            print(f"Project has been made: {self.pFold}")
+
+    def saveP(self):
+        if not hasattr(self,"pFold") or not self.pFold:
+            print("There isn't a project folder to select")
+            return
+        pf = os.path.join(self.pFold,"proj.json")
+        self.pData["files"] =self.filenames
+        with open(pf,"w") as i:
+            json.dump(self.pData,f,indent = 4)
+
+        print(f"Project saved to {pf}")
+
+    def loadP(self):
+        file,_ = QFileDialog.getOpenFileName(filter = "Project Files (*.json)")
+        if file:
+            with open(file,"r") as i:
+                self.pData = json.load(i)
+        self.pFold =self.pData["pf"]
+        self.filenames = self.pData["files"]
+        print(f"Loaded project {file}")
+
+
 
 
     def update(self,v):
@@ -110,7 +162,7 @@ class Ui_MainWindow(object):
             sip.delete(self.canv)
             self.toolbar = None
             self.canv = None
-            self.VerticalLayout.removeItem(self.spacerItem1)
+            self.verticalLayout.removeItem(self.spacerItem1)
         except Exception as e:
             print(e)
             pass
@@ -131,21 +183,37 @@ class Ui_MainWindow(object):
 
     def getFile(self):
         #Will get file address of csv file and read it
-        self.filename = QFileDialog.getOpenFileName(filter = "csv (*.csv)")[0]
-        print("File :", self.filename)
-        self.readData()
+        files,_ = QFileDialog.getOpenFileNames(filter="CSV Files (*.csv)")
+        if files:
+            self.filenames = files
+            print("Files :", self.filenames)
+            self.readData()
+        else:
+            print("No files selected.")
 
     def readData(self):
         #Function to read csv data
-        self.df = pd.read_csv(self.filename,
-                              encoding = 'utf-8',
-                              parse_dates =[0],
-                              infer_datetime_format=True
-                              ).fillna(0)
+        dfs = []
 
-        self.df.columns = ["Datetime", "Temperature"]
-        self.df.set_index("Datetime", inplace=True)
-        self.update(self.themes[0])
+        for file in self.filenames:
+            try:
+                df = pd.read_csv(file,
+                              encoding = 'utf-8',
+                              usecols=['Date-Time (EST)', 'Temperature   (°C)']
+                              )
+                df.rename(columns={"Date-Time (EST)": "Datetime", "Temperature   (°C)": "Temperature"}, inplace=True)
+                df["Datetime"] = pd.to_datetime(df["Datetime"], format="%m/%d/%Y %H:%M:%S", errors="coerce")
+                df.dropna(subset=["Datetime"], inplace=True)
+                dfs.append(df)
+            except Exception as e:
+                print("Error in {file}: {e}")
+
+        if dfs:
+            self.df = pd.concat(dfs).sort_values(by= "Datetime")
+            self.df.set_index("Datetime", inplace=True)
+            self.update(self.themes[0])
+        else:
+            print("Data not valid")
 
 
 
