@@ -21,7 +21,8 @@ from matplotlib.figure import Figure
 import seaborn as sns
 import pandas as pd
 import sip # can be installed : pip install sip
-
+import os
+import json
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self,parent=None,width=5, height = 5, dpi = 120):
@@ -119,6 +120,7 @@ class Ui_MainWindow(object):
         self.saveProB.clicked.connect(self.saveP)
         self.loadProB.clicked.connect(self.loadP)
 
+
     def createP(self):
         f =QFileDialog.getExistingDirectory(None,"Select Project Folder")
         if f:
@@ -134,19 +136,37 @@ class Ui_MainWindow(object):
         pf = os.path.join(self.pFold,"proj.json")
         self.pData["files"] =self.filenames
         with open(pf,"w") as i:
-            json.dump(self.pData,f,indent = 4)
+            json.dump(self.pData,i,indent = 4)
 
         print(f"Project saved to {pf}")
 
     def loadP(self):
         file,_ = QFileDialog.getOpenFileName(filter = "Project Files (*.json)")
-        if file:
+
+        if not file:
+            print("No Project Selected")
+            return
+
+        try:
             with open(file,"r") as i:
                 self.pData = json.load(i)
-        self.pFold =self.pData["pf"]
-        self.filenames = self.pData["files"]
-        print(f"Loaded project {file}")
 
+            self.pFold =self.pData.get("pf","")
+            self.filenames = self.pData.get("files",[])
+            print(f"Loaded project {file}")
+
+            print(f"Loaded project: {file}")
+            print(f"Project Folder: {self.pFold}")
+            print(f"Files in project: {self.filenames}")
+
+            if not self.filenames:
+                print("No files found")
+
+            self.readData()
+            self.update(self.themes[0])
+
+        except Exception as e:
+            print("Error loading in project")
 
 
 
