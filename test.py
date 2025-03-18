@@ -23,6 +23,7 @@ import pandas as pd
 import sip # can be installed : pip install sip
 import os
 import json
+import shutil
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self,parent=None,width=5, height = 5, dpi = 120):
@@ -127,14 +128,30 @@ class Ui_MainWindow(object):
             self.pFold =f
             self.pData ={
                 "pf":self.pFold, "files":[]}
-            print(f"Project has been made: {self.pFold}")
+        self.dataF = os.path.join(self.pFold,"data")
+        os.makedirs(self.dataF,exist_ok =True)
+        print(f"Project has been made: {self.pFold}")
 
     def saveP(self):
         if not hasattr(self,"pFold") or not self.pFold:
             print("There isn't a project folder to select")
             return
+        self.dataF = os.path.join(self.pFold,"data")
+        os.makedirs(self.dataF,exist_ok =True)
+
+        localF = []
+        for f in self.filenames:
+            try:
+                projPath = os.path.join(self.dataF, os.path.basename(f))
+                shutil.copy2(f,projPath)
+                localF.append(os.path.basename(f))
+                print(f"Copied {f} to {projPath}")
+            except Exception as e:
+                print(f"Error copying file {f}: {e}")
+
+
+        self.pData["files"] =localF
         pf = os.path.join(self.pFold,"proj.json")
-        self.pData["files"] =self.filenames
         with open(pf,"w") as i:
             json.dump(self.pData,i,indent = 4)
 
@@ -152,8 +169,9 @@ class Ui_MainWindow(object):
                 self.pData = json.load(i)
 
             self.pFold =self.pData.get("pf","")
-            self.filenames = self.pData.get("files",[])
-            print(f"Loaded project {file}")
+            self.dataF = os.path.join(self.pFold,"data")
+            os.makedirs(self.dataF, exist_ok=True)
+            self.filenames = [os.path.join(self.dataF, f) for f in self.pData.get("files", [])]
 
             print(f"Loaded project: {file}")
             print(f"Project Folder: {self.pFold}")
@@ -166,7 +184,7 @@ class Ui_MainWindow(object):
             self.update(self.themes[0])
 
         except Exception as e:
-            print("Error loading in project")
+            print(f"Error loading in project: {e}")
 
 
 
