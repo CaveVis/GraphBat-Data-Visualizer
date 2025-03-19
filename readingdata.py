@@ -246,24 +246,24 @@ class Ui_MainWindow(object):
 
         for file in self.filenames:
             try:
-                sensorN =os.path.basename(file).split('.')[0]
+                sensorN = os.path.basename(file).split('.')[0]
                 df = pd.read_csv(file,
                               encoding = 'utf-8',
                               usecols=['Date-Time (EST)', 'Temperature   (°C)']
                               )
-                df.rename(columns={"Date-Time (EST)": "Datetime", "Temperature   (°C)": "Temperature"}, inplace=True)
-                df["Datetime"] = pd.to_datetime(df["Datetime"], format="%m/%d/%Y %H:%M:%S", errors="coerce")
-                df.dropna(subset=["Datetime"], inplace=True)
+
+                df["Date-Time (EST)"] = pd.to_datetime(df["Date-Time (EST)"], format="%m/%d/%Y %H:%M:%S", errors="coerce")
+                df.dropna(subset=["Date-Time (EST)"], inplace=True)
                 dfs.append(df)
             except Exception as e:
-                print("Error in {file}: {e}")
+                print(f"Error in {file}: {e}")
 
         if dfs:
             self.df = dfs[0]
             for df in dfs[1:]:
-                self.df = pd.merge(self.df, df, on="Datetime", how="outer")
-            self.df.sort_values(by="Datetime", inplace=True)
-            self.df.set_index("Datetime", inplace=True)
+                self.df = pd.merge(self.df, df, on="Date-Time (EST)", how="outer")
+            self.df.sort_values(by="Date-Time (EST)", inplace=True)
+            self.df.set_index("Date-Time (EST)", inplace=True)
             self.update(self.themes[0])
         else:
             print("Data not valid")
