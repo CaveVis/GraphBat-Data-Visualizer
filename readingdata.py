@@ -246,6 +246,7 @@ class Ui_MainWindow(object):
 
         for file in self.filenames:
             try:
+                sensorN =os.path.basename(file).split('.')[0]
                 df = pd.read_csv(file,
                               encoding = 'utf-8',
                               usecols=['Date-Time (EST)', 'Temperature   (°C)']
@@ -258,11 +259,16 @@ class Ui_MainWindow(object):
                 print("Error in {file}: {e}")
 
         if dfs:
-            self.df = pd.concat(dfs).sort_values(by= "Datetime")
+            self.df = dfs[0]
+            for df in dfs[1:]:
+                self.df = pd.merge(self.df, df, on="Datetime", how="outer")
+            self.df.sort_values(by="Datetime", inplace=True)
             self.df.set_index("Datetime", inplace=True)
             self.update(self.themes[0])
         else:
             print("Data not valid")
+
+
 
 
 
