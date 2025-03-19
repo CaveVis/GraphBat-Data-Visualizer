@@ -53,7 +53,7 @@ class PaintGrid(QWidget):
             top_left_x = int((col * self.cell_size) - (brush_size_px / 2))
             top_left_y = int((row * self.cell_size) - (brush_size_px / 2))
 
-            painter.draw(top_left_x, top_left_y, brush_size_px, brush_size_px)
+            painter.drawRect(top_left_x, top_left_y, brush_size_px, brush_size_px)
             self.update(QRect(top_left_x, top_left_y, brush_size_px, brush_size_px))  # Update only the affected area"
 
 
