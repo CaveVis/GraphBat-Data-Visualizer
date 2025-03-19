@@ -94,10 +94,10 @@ class Ui_MainWindow(object):
         self.loadProB.setText("Load Project")
         self.horizontalLayout.addWidget(self.loadProB)
 
-
-
-
-
+        self.clearDataB = QtWidgets.QPushButton(self.centralwidget)
+        self.clearDataB.setObjectName("clearDataB")
+        self.clearDataB.setText("Clear Data")
+        self.horizontalLayout.addWidget(self.clearDataB)
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -112,7 +112,15 @@ class Ui_MainWindow(object):
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
 
-        self.themes = ['bmh','classic','dark_background','seaborn','fast','ggplot','grayscale']
+        self.themes = ['bmh', 'classic', 'dark_background',
+                       'fivethirtyeight', 'ggplot', 'grayscale', 'seaborn-bright',
+                       'seaborn-colorblind', 'seaborn-dark-palette', 'seaborn-dark',
+                       'seaborn-darkgrid', 'seaborn-deep', 'seaborn-muted', 'seaborn-notebook',
+                       'seaborn-paper', 'seaborn-pastel', 'seaborn-poster', 'seaborn-talk',
+                       'seaborn-ticks', 'seaborn-white', 'seaborn-whitegrid', 'seaborn',
+                       'Solarize_Light2', 'tableau-colorblind10']
+
+        self.comboBox.addItems(self.themes)
 
         #Start of button codes
         self.pushButton.clicked.connect(self.getFile)
@@ -120,6 +128,7 @@ class Ui_MainWindow(object):
         self.createProB.clicked.connect(self.createP)
         self.saveProB.clicked.connect(self.saveP)
         self.loadProB.clicked.connect(self.loadP)
+        self.clearDataB.clicked.connect(self.clearD)
 
 
     def createP(self):
@@ -195,11 +204,20 @@ class Ui_MainWindow(object):
             print(f"Error loading in project: {e}")
 
 
+    def clearD(self):
+        self.df =pd.DataFrame()
+        self.filenames = []
+        self.update(self.themes[0])
+        print("Data has been cleared")
 
     def update(self,v):
         print("V from CB: ", v)
         plt.clf()
         plt.style.use(v)
+
+
+
+
         try:
             self.horizontalLayout.removeWidget(self.toolbar)
             self.verticalLayout.removeWidget(self.canv)
