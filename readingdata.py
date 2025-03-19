@@ -228,6 +228,7 @@ class Ui_MainWindow(object):
         self.canv.axes.set_ylabel('Measured')
         self.canv.axes.set_title('Temperature in Cave Over Time')
         self.canv.draw()
+        self.canv.figure.tight_layout()
 
 
     def getFile(self):
@@ -242,28 +243,26 @@ class Ui_MainWindow(object):
 
     def readData(self):
         #Function to read csv data
-        dfs = []
+        #Dictonary for each sensor's dataframe
+        eachSensor = {}
 
         for file in self.filenames:
             try:
                 sensorN = os.path.basename(file).split('.')[0]
-                df = pd.read_csv(file,
-                              encoding = 'utf-8',
-                              usecols=['Date-Time (EST)', 'Temperature   (°C)']
-                              )
-
+                df = pd.read_csv(file,encoding = 'utf-8',usecols=['Date-Time (EST)', 'Temperature   (°C)'])
                 df["Date-Time (EST)"] = pd.to_datetime(df["Date-Time (EST)"], format="%m/%d/%Y %H:%M:%S", errors="coerce")
                 df.dropna(subset=["Date-Time (EST)"], inplace=True)
-                dfs.append(df)
+                eachSensor[sensorN] = df
             except Exception as e:
                 print(f"Error in {file}: {e}")
 
-        if dfs:
-            self.df = dfs[0]
-            for df in dfs[1:]:
+        if eachSensor:
+            self.df = next(iter(eachSensor.values()))
+            for eachSensor,df in list(eachSensor.items())[1:]:
                 self.df = pd.merge(self.df, df, on="Date-Time (EST)", how="outer")
             self.df.sort_values(by="Date-Time (EST)", inplace=True)
             self.df.set_index("Date-Time (EST)", inplace=True)
+            self.df.interpolate(method='linear', inplace=True)
             self.update(self.themes[0])
         else:
             print("Data not valid")
