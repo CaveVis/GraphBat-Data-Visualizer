@@ -15,7 +15,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use('Qt5Agg')
-from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtWidgets import QFileDialog, QDateTimeEdit
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
 from matplotlib.figure import Figure
 import seaborn as sns
@@ -42,6 +42,7 @@ class Ui_MainWindow(object):
         self.centralwidget.setObjectName("centralwidget")
         self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName("gridLayout")
+
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
         self.label = QtWidgets.QLabel(self.centralwidget)
@@ -56,10 +57,11 @@ class Ui_MainWindow(object):
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem)
         self.gridLayout.addLayout(self.horizontalLayout, 0, 0, 1, 1)
+
         self.verticalLayout = QtWidgets.QVBoxLayout()
         self.verticalLayout.setObjectName("verticalLayout")
-        spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
-        self.verticalLayout.addItem(spacerItem1)
+        self.spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        self.verticalLayout.addItem(self.spacerItem1)
         self.gridLayout.addLayout(self.verticalLayout, 1, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
@@ -71,6 +73,7 @@ class Ui_MainWindow(object):
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
+
         self.actionOpen_CSV = QtWidgets.QAction(MainWindow)
         self.actionOpen_CSV.setObjectName("actionOpen_CSV")
         self.actionExit = QtWidgets.QAction(MainWindow)
@@ -78,6 +81,24 @@ class Ui_MainWindow(object):
         self.menuFile.addAction(self.actionOpen_CSV)
         self.menuFile.addAction(self.actionExit)
         self.menubar.addAction(self.menuFile.menuAction())
+
+        #Start time selection
+        self.startTimeLabel = QtWidgets.QLabel(self.centralwidget)
+        self.startTimeLabel.setText("Start Time:")
+        self.horizontalLayout.addWidget(self.startTimeLabel)
+
+        self.startTimeEdit = QDateTimeEdit(self.centralwidget)
+        self.startTimeEdit.setCalendarPopup(True)
+        self.horizontalLayout.addWidget(self.startTimeEdit)
+
+        #End time selection
+        self.endTimeLabel = QtWidgets.QLabel(self.centralwidget)
+        self.endTimeLabel.setText("End time:")
+        self.horizontalLayout.addWidget(self.endTimeLabel)
+
+        self.endTimeEdit = QDateTimeEdit(self.centralwidget)
+        self.endTimeEdit.setCalendarPopup(True)
+        self.horizontalLayout.addWidget(self.endTimeEdit)
 
         #Nake Create Project button and put it on GUI
         self.createProB = QtWidgets.QPushButton(self.centralwidget)
@@ -102,8 +123,6 @@ class Ui_MainWindow(object):
         self.clearDataB.setObjectName("clearDataB")
         self.clearDataB.setText("Clear Data")
         self.horizontalLayout.addWidget(self.clearDataB)
-
-
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
@@ -130,11 +149,14 @@ class Ui_MainWindow(object):
 
         #Start of button codes
         self.pushButton.clicked.connect(self.getFile)
-        self.comboBox.currentIndexChanged['QString'].connect(self.update)
         self.createProB.clicked.connect(self.createP)
         self.saveProB.clicked.connect(self.saveP)
         self.loadProB.clicked.connect(self.loadP)
         self.clearDataB.clicked.connect(self.clearD)
+
+        self.comboBox.currentIndexChanged['QString'].connect(self.update) #For changing theme comboBox
+        self.startTimeEdit.dateTimeChanged.connect(self.update) #For changing time ranges of graph
+        self.endTimeEdit.dateTimeChanged.connect(self.update)
 
 
     def createP(self):
@@ -219,43 +241,70 @@ class Ui_MainWindow(object):
         self.update(self.themes[0])
         print("Data has been cleared")
 
-    def update(self,v):
+    def update(self,v=None):
+        #If v is a QDateTime object (from dateTimeChanged signal), ignore it
+        if isinstance(v, QtCore.QDateTime):
+            v = self.comboBox.currentText() #Use the current theme
+
         print("V from CB: ", v)
         plt.clf()
         plt.style.use(v)
-
-
-
-
         try:
             self.horizontalLayout.removeWidget(self.toolbar)
             self.verticalLayout.removeWidget(self.canv)
+
+            #Remove spacerItem1 if it exists
+            if hasattr(self, 'spacerItem1'):
+                self.verticalLayout.removeItem(self.spacerItem1)
 
             sip.delete(self.toolbar)
             sip.delete(self.canv)
             self.toolbar = None
             self.canv = None
-            self.verticalLayout.removeItem(self.spacerItem1)
         except Exception as e:
             print(e)
             pass
+        
+        #Create new canvas and toolbar
         self.canv = MatplotlibCanvas(self)
         self.toolbar = Navi(self.canv,self.centralwidget)
+
+        #Add spacerItem1 if it doesn't exist
+        if not hasattr(self, 'spacerItem1'):
+            self.spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+            self.verticalLayout.addWidget(self.canv)
+        
+        #Rebuild layout
         self.horizontalLayout.addWidget(self.toolbar)
         self.verticalLayout.addWidget(self.canv)
 
+        
         self.canv.axes.cla()
+        
+        if not self.df.empty:
+            try:
+                #Get filtered data based on selected time range
+                start_time = self.startTimeEdit.dateTime().toPyDateTime()
+                end_time = self.endTimeEdit.dateTime().toPyDateTime()
+                filtered_df = self.df[(self.df.index >= start_time) & (self.df.index <= end_time)]
 
-        for c in self.df.columns:
-            self.canv.axes.plot(self.df.index, self.df[c], label= c)
+                #Plot each column
+                for c in filtered_df.columns:
+                    self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
+                    #for c in self.df.columns:
+                    # self.canv.axes.plot(self.df.index, self.df[c], label= c)
 
-        legend = self.canv.axes.legend()
-        legend.set_draggable(True)
-        self.canv.axes.set_xlabel('Date-Time')
-        self.canv.axes.set_ylabel('Measured')
-        self.canv.axes.set_title('Temperature in Cave Over Time')
-        self.canv.draw()
-        self.canv.figure.tight_layout()
+                #Configure plot
+                legend = self.canv.axes.legend()
+                legend.set_draggable(True)
+                self.canv.axes.set_xlabel('Date-Time')
+                self.canv.axes.set_ylabel('Measured')
+                self.canv.axes.set_title('Temperature in Cave Over Time')
+
+                self.canv.draw()
+                self.canv.figure.tight_layout()
+            except Exception as e:
+                print("Plotting error:", e)
 
 
     def getFile(self):
@@ -289,6 +338,7 @@ class Ui_MainWindow(object):
                 eachSensor[sensorN] = singleDF
             except Exception as e:
                 print(f"Error in {file}: {e}")
+
         #Merges the dataframes in the dictonary into one dataframe.
         if eachSensor:
             #Starts with the first dataframe as refrence, then merges the rest of them based on it
@@ -302,13 +352,22 @@ class Ui_MainWindow(object):
             self.df.set_index("Date-Time (EST)", inplace=True)
             #self.df.dropna(subset=["Date-Time (EST)"], inplace=True)
             self.df.interpolate(method='linear', inplace=True)
+
+            #Blocks signals while updating time range
+            self.startTimeEdit.blockSignals(True)
+            self.endTimeEdit.blockSignals(True)
+
+            #Set default time range
+            self.startTimeEdit.setDateTime(QtCore.QDateTime(self.df.index.min()))
+            self.endTimeEdit.setDateTime(QtCore.QDateTime(self.df.index.max()))
+
+            #Unblock signals
+            self.startTimeEdit.blockSignals(False)
+            self.endTimeEdit.blockSignals(False)
+
             self.update(self.themes[0])
         else:
             print("Data not valid")
-
-
-
-
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
