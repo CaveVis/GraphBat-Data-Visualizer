@@ -140,6 +140,8 @@ class Ui_MainWindow(object):
             self.pFold = f
             self.pData ={
                 "pf":self.pFold, "files":[]}
+        else:
+            return
         #Creates a subfolder in the main project folder called datafiles which will store the copied CSV files that are uploaded to the project.
         #It will not be created if there already exists one
         self.dataF = os.path.join(self.pFold,"datafiles")
@@ -154,6 +156,7 @@ class Ui_MainWindow(object):
         #Makes sure the datafile subfolder has been made
         self.dataF = os.path.join(self.pFold,"data")
         os.makedirs(self.dataF,exist_ok =True)
+
 
 
         #List is made for copied files and the loop puts each csv file into datafile folder
@@ -270,6 +273,8 @@ class Ui_MainWindow(object):
                 df = pd.read_csv(file,encoding = 'utf-8',usecols=['Date-Time (EST)', 'Temperature   (°C)'])
                 df["Date-Time (EST)"] = pd.to_datetime(df["Date-Time (EST)"], format="%m/%d/%Y %H:%M:%S", errors="coerce")
                 df.dropna(subset=["Date-Time (EST)"], inplace=True)
+                df.rename(columns={'Temperature   (°C)': f'Temperature_{sensorN}'}, inplace=True)
+
                 eachSensor[sensorN] = df
             except Exception as e:
                 print(f"Error in {file}: {e}")
