@@ -15,7 +15,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
 import matplotlib.pyplot as plt
 matplotlib.use('Qt5Agg')
-from PyQt5.QtWidgets import QFileDialog, QDateTimeEdit
+from PyQt5.QtWidgets import QFileDialog, QDateTimeEdit, QDockWidget, QTabWidget, QTextEdit
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
 from matplotlib.figure import Figure
 import seaborn as sns
@@ -43,37 +43,52 @@ class Ui_MainWindow(object):
         self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName("gridLayout")
 
+        #Horizontal layour for controls
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
+
+        #Theme selection
         self.label = QtWidgets.QLabel(self.centralwidget)
         self.label.setObjectName("label")
         self.horizontalLayout.addWidget(self.label)
+
         self.comboBox = QtWidgets.QComboBox(self.centralwidget)
         self.comboBox.setObjectName("comboBox")
         self.horizontalLayout.addWidget(self.comboBox)
+
+        #File open button
         self.pushButton = QtWidgets.QPushButton(self.centralwidget)
         self.pushButton.setObjectName("pushButton")
         self.horizontalLayout.addWidget(self.pushButton)
+
+        #Spacer item to space out widgets to the left
         spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.horizontalLayout.addItem(spacerItem)
         self.gridLayout.addLayout(self.horizontalLayout, 0, 0, 1, 1)
 
+        #Vertical layout for the plot
         self.verticalLayout = QtWidgets.QVBoxLayout()
         self.verticalLayout.setObjectName("verticalLayout")
         self.spacerItem1 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout.addItem(self.spacerItem1)
         self.gridLayout.addLayout(self.verticalLayout, 1, 0, 1, 1)
+
         MainWindow.setCentralWidget(self.centralwidget)
+
+        #Menu bar
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 800, 26))
         self.menubar.setObjectName("menubar")
         self.menuFile = QtWidgets.QMenu(self.menubar)
         self.menuFile.setObjectName("menuFile")
         MainWindow.setMenuBar(self.menubar)
+
+        #Status bar
         self.statusbar = QtWidgets.QStatusBar(MainWindow)
         self.statusbar.setObjectName("statusbar")
         MainWindow.setStatusBar(self.statusbar)
 
+        #Actions
         self.actionOpen_CSV = QtWidgets.QAction(MainWindow)
         self.actionOpen_CSV.setObjectName("actionOpen_CSV")
         self.actionExit = QtWidgets.QAction(MainWindow)
@@ -124,19 +139,30 @@ class Ui_MainWindow(object):
         self.clearDataB.setText("Clear Data")
         self.horizontalLayout.addWidget(self.clearDataB)
 
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
-
 
         #Setting up file name var, canvas, dataframe and toolbar
-
         self.filenames =''
         self.canv = MatplotlibCanvas(self)
         self.df = pd.DataFrame()
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
 
+
+        #Create a dock widget for statistics
+        self.statsDockWidget = QDockWidget("Statistics Panel", MainWindow)
+        self.statsDockWidget.setFeatures(
+            QDockWidget.DockWidgetMovable |
+            QDockWidget.DockWidgetFloatable |
+            QDockWidget.DockWidgetClosable
+        )
+        MainWindow.addDockWidget(QtCore.Qt.LeftDockWidgetArea, self.statsDockWidget)
+
+        #Create a tab widget for statistics
+        self.statsTabWidget = QTabWidget()
+        self.statsDockWidget.setWidget(self.statsTabWidget)
+        
+        #Themes for plotting -- make sure that all of the themes are installed locally otherwise
+        #will cause crashes when selected
         self.themes = ['bmh', 'classic', 'dark_background',
                        'fivethirtyeight', 'ggplot', 'grayscale', 'seaborn-bright',
                        'seaborn-colorblind', 'seaborn-dark-palette', 'seaborn-dark',
@@ -147,7 +173,7 @@ class Ui_MainWindow(object):
 
         self.comboBox.addItems(self.themes)
 
-        #Start of button codes
+        #Connect signals and slots
         self.pushButton.clicked.connect(self.getFile)
         self.createProB.clicked.connect(self.createP)
         self.saveProB.clicked.connect(self.saveP)
@@ -157,6 +183,10 @@ class Ui_MainWindow(object):
         self.comboBox.currentIndexChanged['QString'].connect(self.update) #For changing theme comboBox
         self.startTimeEdit.dateTimeChanged.connect(self.update) #For changing time ranges of graph
         self.endTimeEdit.dateTimeChanged.connect(self.update)
+
+        #Finalize UI
+        self.retranslateUi(MainWindow)
+        QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
 
     def createP(self):
@@ -306,6 +336,34 @@ class Ui_MainWindow(object):
             except Exception as e:
                 print("Plotting error:", e)
 
+    def updateStatistics(self):
+        #Clear existing tabs
+        self.statsTabWidget.clear()
+
+        #Add a tab for each sensor
+        for column in self.df.columns:
+            if column.startswith("Temperature_"):
+                sensorName = column.replace("Temperature_", "")
+                statsText = self.calculateStatistics(self.df[column])
+
+                #Create a QTextEdit for the statistics
+                textEdit = QTextEdit()
+                textEdit.setReadOnly(True)
+                textEdit.setText(statsText)
+                
+                #Add the QTextEdit to a new tab
+                self.statsTabWidget.addTab(textEdit, sensorName)
+            
+    def calculateStatistics(self, data):
+        stats = {
+            "Min" : data.min(),
+            "Max" : data.max(),
+            "Mean" : data.mean(),
+            "Median" : data.median(),
+            "Standard deviation" : data.std()
+        }
+        statsText = "\n".join(f"{key}: {value:2F}" for key, value in stats.items())
+        return statsText
 
     def getFile(self):
         #Will get file address of csv file and read it
@@ -365,6 +423,10 @@ class Ui_MainWindow(object):
             self.startTimeEdit.blockSignals(False)
             self.endTimeEdit.blockSignals(False)
 
+            #Update statistics
+            self.updateStatistics()
+
+            #Update plot
             self.update(self.themes[0])
         else:
             print("Data not valid")
