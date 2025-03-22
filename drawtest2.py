@@ -1,31 +1,41 @@
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QSpinBox, QHBoxLayout, QLabel
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QSpinBox, QHBoxLayout, QLabel, QFileDialog
 from PySide6.QtGui import QPainter, QColor, QMouseEvent, QImage, QPixmap
 from PySide6.QtCore import Qt, QRect
 import numpy as np
 
 alp = QColor.fromRgbF(0.0,0.0,0.0,0.0)
 black = QColor.fromRgbF(0.0,0.0,0.0,1.0)
-
+WINDOW_SIZE = 800
 class PaintGrid(QWidget):
-    def __init__(self, brush_size=5, grid_size=1000, background_path=None):
+    def __init__(self, brush_size=5, grid_x=1000, grid_y = 1000, reso = 1000, background = None):
         super().__init__()
-        self.grid_size = grid_size
+        self.grid_x = grid_x
+        self.grid_y = grid_y
         self.brush_size = brush_size
         self.is_drawing = False
         self.draw_value = 1
-
+        self.resoltion = reso
+        self.cell_size = 1
+        self.window_size = WINDOW_SIZE
         # Load the background image and determine size
-        self.background = None
-        if background_path:
-            self.background = QPixmap(background_path)
+        self.background = background
+        if self.background:
+            self.background = QPixmap(self.background)
             self.img_width = self.background.width()
             self.img_height = self.background.height()
 
-            self.cell_size = self.background.width() / self.grid_size
+            self.grid_x = self.img_width
+            self.grid_y = self.img_height
+            fix = grid_x / reso
+
+            self.cell_size = self.grid_x / self.resoltion if self.resoltion else 1
+
+
             
-            max_size = 800  #  adjust if needed
-            if self.img_width > max_size or self.img_height > max_size:
-                scale_factor = max_size / max(self.img_width, self.img_height)
+            # Ensure image scales proportionally to a max size (optional)
+              # You can adjust this if needed
+            if self.img_width > WINDOW_SIZE or self.img_height > WINDOW_SIZE:
+                scale_factor = WINDOW_SIZE / max(self.img_width, self.img_height)
                 self.img_width = int(self.img_width * scale_factor)
                 self.img_height = int(self.img_height * scale_factor)
                 self.background = self.background.scaled(self.img_width, self.img_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
@@ -34,6 +44,10 @@ class PaintGrid(QWidget):
             # Default size if no image is provided
             self.img_width, self.img_height = 800, 800
 
+        if background:
+            self.backg_image = QPixmap(background).scaled(self.window_size, self.window_size, Qt.KeepAspectRatioByExpanding)
+
+
         self.setFixedSize(self.img_width, self.img_height)  # Set canvas size to match image
         self.image = QImage(self.img_width, self.img_height, QImage.Format_RGBA64)
         self.image.fill(QColor(0, 0, 0, 0))  # Transparent background
@@ -41,7 +55,7 @@ class PaintGrid(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
 
-
+        # Draw background image first
         if self.background:
             painter.drawPixmap(0, 0, self.background)
 
@@ -63,7 +77,7 @@ class PaintGrid(QWidget):
         col = int(event.position().x()) // self.cell_size
         row = int(event.position().y()) // self.cell_size
 
-        if 0 <= row < self.grid_size and 0 <= col < self.grid_size:
+        if 0 <= row < self.grid_y and 0 <= col < self.grid_x:
             color = black if self.draw_value == 1 else alp
 
             painter = QPainter(self.image)
@@ -77,7 +91,7 @@ class PaintGrid(QWidget):
             top_left_y = int((row * self.cell_size) - (brush_size_px / 2))
 
             painter.drawRect(top_left_x, top_left_y, brush_size_px, brush_size_px)
-            self.update(QRect(top_left_x, top_left_y, brush_size_px, brush_size_px))  
+            self.update(QRect(top_left_x, top_left_y, brush_size_px, brush_size_px))  # Update only the affected area"
 
 
     def clear_grid(self):
@@ -95,45 +109,45 @@ class PaintGrid(QWidget):
         self.update()
 
     def get_mask(self):
-        mask = np.zeros((self.grid_size, self.grid_size), dtype=int)
+        mask = np.zeros((self.grid_y, self.grid_x), dtype=int)
 
-        # Map grid size to image size
-        cell_width = self.image.width() / self.grid_size
-        cell_height = self.image.height() / self.grid_size
+        cell_width = self.image.width() / self.grid_x
+        cell_height = self.image.height() / self.grid_y
 
-        for x in range(self.grid_size):
-            for y in range(self.grid_size):
-                # Convert grid coordinates to image pixel coordinates
+        for x in range(self.grid_x):
+            for y in range(self.grid_y):
                 px = int(x * cell_width)
                 py = int(y * cell_height)
 
-                # Get pixel color
+                if px >= self.image.width() or py >= self.image.height():
+                    continue
+
                 pixel_color = QColor.fromRgba(self.image.pixel(px, py))
 
-                # Check if black or transparent
-                if pixel_color.alpha() > 0 and pixel_color == black:  
-                    mask[y, x] = 1
-                else: 
-                    mask[y, x] = 0
+                # Flip the y-axis mapping
+                flipped_y = self.grid_y - 1 - y  # Reverse row order
 
-        return mask.tolist()
-    
+                if pixel_color.alpha() > 0 and pixel_color == black:
+                    mask[flipped_y, x] = 1
+                else:
+                    mask[flipped_y, x] = 0
+
+        return mask
+
+
 class MainApp(QWidget):
-    def __init__(self, brush_size=5, background_path="Howards_Waterfall_Cave_Map-1.png"):
+    def __init__(self, brush_size=5, background = None):
         super().__init__()
         self.setWindowTitle("Paint Grid with Adaptive Canvas")
         self.layout = QVBoxLayout()
-        self.background = QPixmap(background_path)
+        self.background = background
+
         controls_layout = QHBoxLayout()
 
-        self.grid_size_input = QSpinBox()
-        self.grid_size_input.setRange(10, 10000)
-        self.grid_size_input.setValue(1000)
-        controls_layout.addWidget(self.grid_size_input)
+        self.generate_button1 = QPushButton("Select Image")
+        self.generate_button1.clicked.connect(self.get_backimage)
+        controls_layout.addWidget(self.generate_button1)
 
-        self.generate_button = QPushButton("Generate Grid")
-        self.generate_button.clicked.connect(self.create_grid)
-        controls_layout.addWidget(self.generate_button)
 
         self.clear_button = QPushButton("Clear")
         self.clear_button.clicked.connect(self.clear_grid)
@@ -156,24 +170,36 @@ class MainApp(QWidget):
         self.export_button.clicked.connect(self.export_mask)
         self.layout.addWidget(self.export_button)
 
-
-        self.grid_widget = PaintGrid(brush_size, 100, background_path)
+        # Pass background image path
+        self.grid_widget = PaintGrid(brush_size, 100, background)
         self.layout.addWidget(self.grid_widget)
         self.setLayout(self.layout)
 
     def create_grid(self):
-        self.grid_size = self.grid_size_input.value()
         self.brush_size = self.brush_size_input.value()
 
-        background_path = "Howards_Waterfall_Cave_Map-1.png"  
-
+        # Remove and delete the existing widget
         self.layout.removeWidget(self.grid_widget)
         self.grid_widget.deleteLater()
 
-        # Create new grid with the same background image
-        self.grid_widget = PaintGrid(self.brush_size, self.grid_size, background_path)
+        # Ensure the image is loaded correctly
+        image = QImage(self.background)
+        grid_x = image.width()
+        grid_y = image.height()
+
+        # Create a new grid with the updated background image and correct size
+        self.grid_widget = PaintGrid(self.brush_size, grid_x, grid_y, reso=grid_x, background=self.background)
 
         self.layout.addWidget(self.grid_widget)
+
+
+    def get_backimage(self):
+        file, _ = QFileDialog.getOpenFileName(self, self.tr("Open File"), "", self.tr("Images (*.png *.jpg)"))
+        if file:  # Ensure a file was selected
+            self.background = file
+            self.create_grid()
+
+
 
     def clear_grid(self):
         self.grid_widget.clear_grid()
@@ -187,11 +213,7 @@ class MainApp(QWidget):
     def export_mask(self):
         mask = self.grid_widget.get_mask()
         print("Exported Mask:", mask)
-        with open("output_list.txt", 'w') as file:
-            for item in mask:
-                file.write(str(item) + '\n')
-            print("Done writing file")
-
+        np.save('my_array.npy', mask)
 if __name__ == "__main__":
     app = QApplication([])
     window = MainApp()
