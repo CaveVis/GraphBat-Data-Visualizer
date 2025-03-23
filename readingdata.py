@@ -20,10 +20,12 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationTool
 from matplotlib.figure import Figure
 import seaborn as sns
 import pandas as pd
+import numpy as py
 import sip # can be installed : pip install sip
 import os
 import json
 import shutil
+
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self,parent=None,width=5, height = 5, dpi = 120):
@@ -32,7 +34,72 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         super(MatplotlibCanvas,self).__init__(f)
         f.tight_layout()
 
-
+class AnomalyDialog(QtWidgets.QDialog):
+    def __init__(self, parent=None, anomaly_info=None):
+        super(AnomalyDialog, self).__init__(parent)
+        self.setWindowTitle("Anomaly Detection")
+        self.resize(500, 300)
+        
+        # Main layout
+        self.layout = QtWidgets.QVBoxLayout(self)
+        
+        # Create information label
+        sensor_name = anomaly_info.get('sensor_name', 'Unknown')
+        count = anomaly_info.get('count', 0)
+        
+        self.info_label = QtWidgets.QLabel(
+            f"<h3>Anomalies Detected in {sensor_name}</h3>"
+            f"<p>Found {count} data points outside the expected range.</p>"
+            "<p>Outliers can affect statistical analysis and visualization.</p>"
+        )
+        self.info_label.setWordWrap(True)
+        self.layout.addWidget(self.info_label)
+        
+        # Create table to display anomalies
+        self.table = QtWidgets.QTableWidget()
+        self.table.setColumnCount(2)
+        self.table.setHorizontalHeaderLabels(["Timestamp", "Value"])
+        self.table.horizontalHeader().setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
+        self.layout.addWidget(self.table)
+        
+        # Fill table with anomaly data
+        outliers = anomaly_info.get('values', pd.Series())
+        self.table.setRowCount(len(outliers))
+        
+        for i, (timestamp, value) in enumerate(outliers.items()):
+            time_item = QtWidgets.QTableWidgetItem(timestamp.strftime('%Y-%m-%d %H:%M:%S'))
+            value_item = QtWidgets.QTableWidgetItem(f"{value:.2f}")
+            self.table.setItem(i, 0, time_item)
+            self.table.setItem(i, 1, value_item)
+        
+        # Button group
+        self.button_box = QtWidgets.QHBoxLayout()
+        
+        # Create options
+        self.remove_button = QtWidgets.QPushButton("Remove Outliers")
+        self.ignore_button = QtWidgets.QPushButton("Ignore Outliers")
+        self.cancel_button = QtWidgets.QPushButton("Cancel")
+        
+        self.button_box.addWidget(self.remove_button)
+        self.button_box.addWidget(self.ignore_button)
+        self.button_box.addWidget(self.cancel_button)
+        self.layout.addLayout(self.button_box)
+        
+        # Connect buttons to actions
+        self.remove_button.clicked.connect(self.accept_remove)
+        self.ignore_button.clicked.connect(self.accept_ignore)
+        self.cancel_button.clicked.connect(self.reject)
+        
+        # Result attribute to track user's choice
+        self.result = "cancel"
+        
+    def accept_remove(self):
+        self.result = "remove"
+        self.accept()
+        
+    def accept_ignore(self):
+        self.result = "ignore"
+        self.accept()
 
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
@@ -115,6 +182,17 @@ class Ui_MainWindow(object):
         self.endTimeEdit.setCalendarPopup(True)
         self.horizontalLayout.addWidget(self.endTimeEdit)
 
+        #Plot type selection
+        self.plotTypeLabel = QtWidgets.QLabel(self.centralwidget)
+        self.plotTypeLabel.setObjectName("plotTypeLabel")
+        self.plotTypeLabel.setText("Plot Type:")
+        self.horizontalLayout.addWidget(self.plotTypeLabel)
+
+        self.plotTypeComboBox = QtWidgets.QComboBox(self.centralwidget)
+        self.plotTypeComboBox.setObjectName("plotTypeComboBox")
+        self.plotTypeComboBox.addItems(["Line Graph", "Bar Graph", "Histogram", "Box Plot"])
+        self.horizontalLayout.addWidget(self.plotTypeComboBox)
+
         #Nake Create Project button and put it on GUI
         self.createProB = QtWidgets.QPushButton(self.centralwidget)
         self.createProB.setObjectName("createProB")
@@ -181,13 +259,13 @@ class Ui_MainWindow(object):
         self.clearDataB.clicked.connect(self.clearD)
 
         self.comboBox.currentIndexChanged['QString'].connect(self.update) #For changing theme comboBox
+        self.plotTypeComboBox.currentIndexChanged.connect(self.update) #For changing plot type
         self.startTimeEdit.dateTimeChanged.connect(self.update) #For changing time ranges of graph
         self.endTimeEdit.dateTimeChanged.connect(self.update)
 
         #Finalize UI
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-
 
     def createP(self):
         #A dialog box is opened and the user is propmted to select a project folder
@@ -264,17 +342,23 @@ class Ui_MainWindow(object):
         except Exception as e:
             print(f"Error loading in project: {e}")
 
-
     def clearD(self):
         self.df =pd.DataFrame()
         self.filenames = []
+        #Reset anomaly handling state
+        if hasattr(self, 'ignore_anomalies'):
+            delattr(self, 'ignore_anomalies')
         self.update(self.themes[0])
         print("Data has been cleared")
 
     def update(self,v=None):
         #If v is a QDateTime object (from dateTimeChanged signal), ignore it
         if isinstance(v, QtCore.QDateTime):
+
             v = self.comboBox.currentText() #Use the current theme
+        # If v is an integer (from plotTypeComboBox), use current theme
+        elif isinstance(v, int):
+            v = self.comboBox.currentText()  # Use the current theme
 
         print("V from CB: ", v)
         plt.clf()
@@ -291,6 +375,7 @@ class Ui_MainWindow(object):
             sip.delete(self.canv)
             self.toolbar = None
             self.canv = None
+
         except Exception as e:
             print(e)
             pass
@@ -314,23 +399,161 @@ class Ui_MainWindow(object):
         if not self.df.empty:
             try:
                 #Get filtered data based on selected time range
-                start_time = self.startTimeEdit.dateTime().toPyDateTime()
-                end_time = self.endTimeEdit.dateTime().toPyDateTime()
-                filtered_df = self.df[(self.df.index >= start_time) & (self.df.index <= end_time)]
+                startTime = self.startTimeEdit.dateTime().toPyDateTime()
+                endTime = self.endTimeEdit.dateTime().toPyDateTime()
+                filtered_df = self.df[(self.df.index >= startTime) & (self.df.index <= endTime)]
 
-                #Plot each column
+                # Track if any anomalies were found across all sensors
+                anomalies_found = False
+                anomalies_by_sensor = {}
+                
+                # Check for anomalies in each temperature column
                 for c in filtered_df.columns:
-                    self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
-                    #for c in self.df.columns:
-                    # self.canv.axes.plot(self.df.index, self.df[c], label= c)
+                    if c.startswith("Temperature_"):
+                        # Get outliers using our existing method
+                        anomaly_data = self.detectAnomalies(filtered_df[c])
+                        if anomaly_data['count'] > 0:
+                            anomalies_found = True
+                            sensorName = c.replace("Temperature_", "")
+                            anomalies_by_sensor[c] = {
+                                'sensor_name': sensorName,
+                                'count': anomaly_data['count'],
+                                'values': anomaly_data['values'],
+                                'column': c
+                            }
+                
+                # If anomalies were found and we're not in a state where we're ignoring them
+                if anomalies_found and not hasattr(self, 'ignore_anomalies'):
+                    # Start with the first sensor that has anomalies
+                    for sensor_col, anomaly_info in anomalies_by_sensor.items():
+                        dialog = AnomalyDialog(MainWindow, anomaly_info)
+                        result = dialog.exec_()
+                        
+                        if result == QtWidgets.QDialog.Accepted:
+                            if dialog.result == "remove":
+                                # Remove the outliers from the dataframe
+                                outlier_indices = anomaly_info['values'].index
+                                self.df.loc[outlier_indices, sensor_col] = None
+                                # Interpolate the removed values
+                                self.df[sensor_col] = self.df[sensor_col].interpolate(method='linear')
+                                # Re-filter the data after modification
+                                filtered_df = self.df[(self.df.index >= startTime) & (self.df.index <= endTime)]
+                                print(f"Removed {len(outlier_indices)} outliers from {anomaly_info['sensor_name']}")
+                            elif dialog.result == "ignore":
+                                # Set a flag to ignore anomalies for this session
+                                self.ignore_anomalies = True
+                                print("Ignoring outliers for this session")
+                            break  # Only show dialog for the first sensor with anomalies
 
-                #Configure plot
-                legend = self.canv.axes.legend()
-                legend.set_draggable(True)
-                self.canv.axes.set_xlabel('Date-Time')
-                self.canv.axes.set_ylabel('Measured')
-                self.canv.axes.set_title('Temperature in Cave Over Time')
+                #Update statistics
+                self.updateStatistics()
 
+                #Get plot type
+                plotType = self.plotTypeComboBox.currentText()
+
+                if plotType == "Line Graph":
+                    for c in filtered_df.columns:
+                        self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
+                        
+                        # If we're not ignoring anomalies, highlight them
+                        if not hasattr(self, 'ignore_anomalies') or not self.ignore_anomalies:
+                            # Get outliers using our existing method
+                            anomaly_data = self.detectAnomalies(filtered_df[c])
+                            outliers = anomaly_data['values']
+                            
+                            # Plot outliers as red dots
+                            if not outliers.empty:
+                                self.canv.axes.scatter(outliers.index, outliers.values, color='red', 
+                                                      s=50, label=f"{c} outliers", zorder=5)
+                    #Configure plot
+                    legend = self.canv.axes.legend()
+                    legend.set_draggable(True)
+                    self.canv.axes.set_xlabel('Date-Time')
+                    self.canv.axes.set_ylabel('Measured')
+                    self.canv.axes.set_title('Temperature in Cave Over Time')
+                
+                elif plotType == "Bar Graph":
+                    # For bar graphs, we'll need to resample the data to a suitable frequency
+                    # since plotting every timestamp would be too crowded
+                    
+                    # Determine appropriate frequency based on date range
+                    date_range = (filtered_df.index.max() - filtered_df.index.min()).total_seconds()
+                    
+                    if date_range > 60*60*24*30:  # More than a month
+                        freq = 'W'  # Weekly
+                        freq_label = 'Weekly'
+                    elif date_range > 60*60*24*7:  # More than a week
+                        freq = 'D'  # Daily
+                        freq_label = 'Daily'
+                    elif date_range > 60*60*24:  # More than a day
+                        freq = '6H'  # 6-hourly
+                        freq_label = '6-Hourly'
+                    else:
+                        freq = 'H'  # Hourly
+                        freq_label = 'Hourly'
+                    
+                    # Resample data
+                    resampled_df = filtered_df.resample(freq).mean()
+                    
+                    # Calculate bar width based on number of columns
+                    width = 0.8 / len(resampled_df.columns)
+                    
+                    # Plot each column as a separate bar series
+                    for i, col in enumerate(resampled_df.columns):
+                        # Calculate position for this set of bars
+                        pos = [j + (i * width) for j in range(len(resampled_df))]
+                        self.canv.axes.bar(pos, resampled_df[col], width=width, label=col)
+                    
+                    # Configure plot
+                    self.canv.axes.set_xlabel('Time Period')
+                    self.canv.axes.set_ylabel('Average Temperature (°C)')
+                    self.canv.axes.set_title(f'{freq_label} Average Temperature')
+                    self.canv.axes.set_xticks(range(len(resampled_df)))
+                    self.canv.axes.set_xticklabels([d.strftime('%Y-%m-%d') for d in resampled_df.index], rotation=45)
+                    legend = self.canv.axes.legend()
+                    legend.set_draggable(True)
+                    
+                elif plotType == "Histogram":
+                    # We'll create a histogram for each column with transparency
+                    bins = 20  # Number of bins
+                    
+                    for col in filtered_df.columns:
+                        # Remove NaN values for histogram
+                        data = filtered_df[col].dropna()
+                        
+                        # Only create histogram if we have data
+                        if len(data) > 0:
+                            self.canv.axes.hist(data, bins=bins, alpha=0.7, label=col)
+                    
+                    # Configure plot
+                    self.canv.axes.set_xlabel('Temperature (°C)')
+                    self.canv.axes.set_ylabel('Frequency')
+                    self.canv.axes.set_title('Temperature Distribution')
+                    legend = self.canv.axes.legend()
+                    legend.set_draggable(True)
+                    
+                elif plotType == "Box Plot":
+                    # For box plots, we need to prepare the data differently
+                    # We'll create a list of data for each column
+                    data = []
+                    labels = []
+                    
+                    for col in filtered_df.columns:
+                        # Only add column if it has non-NaN values
+                        if not filtered_df[col].isna().all():
+                            data.append(filtered_df[col].dropna())
+                            labels.append(col)
+                    
+                    # Create box plot
+                    if data:
+                        self.canv.axes.boxplot(data, labels=labels, patch_artist=True)
+                        
+                        # Configure plot
+                        self.canv.axes.set_xlabel('Sensor')
+                        self.canv.axes.set_ylabel('Temperature (°C)')
+                        self.canv.axes.set_title('Temperature Distribution by Sensor')
+                        self.canv.axes.grid(True, linestyle='--', alpha=0.7)        
+                
                 self.canv.draw()
                 self.canv.figure.tight_layout()
             except Exception as e:
@@ -339,12 +562,17 @@ class Ui_MainWindow(object):
     def updateStatistics(self):
         #Clear existing tabs
         self.statsTabWidget.clear()
+        
+        #Get filtered data based on selected time range
+        startTime = self.startTimeEdit.dateTime().toPyDateTime()
+        endTime = self.endTimeEdit.dateTime().toPyDateTime()
+        filtered_df = self.df[(self.df.index >= startTime) & (self.df.index <= endTime)]
 
         #Add a tab for each sensor
         for column in self.df.columns:
             if column.startswith("Temperature_"):
                 sensorName = column.replace("Temperature_", "")
-                statsText = self.calculateStatistics(self.df[column])
+                statsText = self.calculateStatistics(filtered_df[column])
 
                 #Create a QTextEdit for the statistics
                 textEdit = QTextEdit()
@@ -353,16 +581,76 @@ class Ui_MainWindow(object):
                 
                 #Add the QTextEdit to a new tab
                 self.statsTabWidget.addTab(textEdit, sensorName)
-            
+
+    def detectAnomalies(self, data):
+        # Calculate quartiles and IQR
+        Q1 = data.quantile(0.25)
+        Q3 = data.quantile(0.75)
+        IQR = Q3 - Q1
+
+        # Identify outliers using the 1.5 * IQR rule
+        threshold = 1.5
+        lower_bound = Q1 - threshold * IQR
+        upper_bound = Q3 + threshold * IQR
+    
+        # Find global outliers
+        globalOutliers = data[(data < lower_bound) | (data > upper_bound)]
+
+        #Rolling window detection for local contextual anomalies 
+        #windowSize = 24 #For hourly data, 
+
+        #Calculate rolling mean and standard deviation
+        #rollingMean = data.rolling(window=windowSize, center=True).mean()
+        #rollingStd = data.rolling(window=windowSize, center=True).std()
+
+        #Define how many standard deviations is considered anomalous
+        #stdThreshold = 3.0
+
+        #Calculate the upper and lower bounds for local anomalies
+        #localLowerBound = rollingMean - stdThreshold * rollingStd
+        #localUpperBound = rollingMean +stdThreshold * rollingStd
+
+        #Find local outliers
+        #mask = ((data < localLowerBound) | (data > localUpperBound))
+        #localOutliers = data[mask]
+
+        #Combine both types of outliers
+        #allOutliers = pd.concat([globalOutliers, localOutliers]).drop_duplicates()
+    
+        return {
+            "count": len(globalOutliers),
+            "values": globalOutliers,
+            "global_lower_bound": lower_bound,
+            "global_upper_bound": upper_bound,
+        }   
+
     def calculateStatistics(self, data):
         stats = {
             "Min" : data.min(),
             "Max" : data.max(),
             "Mean" : data.mean(),
             "Median" : data.median(),
-            "Standard deviation" : data.std()
+            "Standard deviation" : data.std()  
         }
+
+        #Anomaly detection
+        anomalies = self.detectAnomalies(data)
+
+        #Create statistics text
         statsText = "\n".join(f"{key}: {value:2F}" for key, value in stats.items())
+
+        # Add anomaly information
+        statsText += f"\n\nTotal Outliers: {anomalies['count']}"
+        statsText += f"\nGlobal Lower bound: {anomalies['global_lower_bound']:.2f}"
+        statsText += f"\nGlobal Upper bound: {anomalies['global_upper_bound']:.2f}"
+
+
+         # List outlier timestamps if there are any
+        if anomalies['count'] > 0:
+            statsText += "\n\nOutlier timestamps:"
+            for idx, value in anomalies['values'].items():
+                statsText += f"\n{idx.strftime('%Y-%m-%d %H:%M:%S')}: {value:.2f}"
+    
         return statsText
 
     def getFile(self):
@@ -439,7 +727,6 @@ class Ui_MainWindow(object):
         self.menuFile.setTitle(_translate("MainWindow", "File"))
         self.actionOpen_CSV.setText(_translate("MainWindow", "Open CSV"))
         self.actionExit.setText(_translate("MainWindow", "Exit"))
-
 
 if __name__ == "__main__":
     import sys
