@@ -190,7 +190,7 @@ class Ui_MainWindow(object):
 
         self.plotTypeComboBox = QtWidgets.QComboBox(self.centralwidget)
         self.plotTypeComboBox.setObjectName("plotTypeComboBox")
-        self.plotTypeComboBox.addItems(["Line Graph", "Bar Graph", "Histogram", "Box Plot"])
+        self.plotTypeComboBox.addItems(["Line Graph", "Bar Graph", "Histogram", "Box Plot","Heat Map"])
         self.horizontalLayout.addWidget(self.plotTypeComboBox)
 
         #Nake Create Project button and put it on GUI
@@ -198,6 +198,13 @@ class Ui_MainWindow(object):
         self.createProB.setObjectName("createProB")
         self.createProB.setText("Create Project")
         self.horizontalLayout.addWidget(self.createProB)
+
+        #Get img file button
+        self.getIMGButton = QtWidgets.QPushButton(self.centralwidget)
+        self.getIMGButton.setObjectName("getIMGButton")
+        self.getIMGButton.setText("Upload Image")
+        self.horizontalLayout.addWidget(self.getIMGButton)
+
 
         #Make Save Project button and put it on GUI
         self.saveProB = QtWidgets.QPushButton(self.centralwidget)
@@ -219,6 +226,7 @@ class Ui_MainWindow(object):
 
 
         #Setting up file name var, canvas, dataframe and toolbar
+        self.imgfile =''
         self.filenames =''
         self.canv = MatplotlibCanvas(self)
         self.df = pd.DataFrame()
@@ -252,11 +260,13 @@ class Ui_MainWindow(object):
         self.comboBox.addItems(self.themes)
 
         #Connect signals and slots
-        self.pushButton.clicked.connect(self.getFile)
+        self.pushButton.clicked.connect(self.getFileCSV)
         self.createProB.clicked.connect(self.createP)
         self.saveProB.clicked.connect(self.saveP)
         self.loadProB.clicked.connect(self.loadP)
         self.clearDataB.clicked.connect(self.clearD)
+        self.getIMGButton.clicked.connect(self.getFileIMG)
+
 
         self.comboBox.currentIndexChanged['QString'].connect(self.update) #For changing theme comboBox
         self.plotTypeComboBox.currentIndexChanged.connect(self.update) #For changing plot type
@@ -552,10 +562,14 @@ class Ui_MainWindow(object):
                         self.canv.axes.set_xlabel('Sensor')
                         self.canv.axes.set_ylabel('Temperature (°C)')
                         self.canv.axes.set_title('Temperature Distribution by Sensor')
-                        self.canv.axes.grid(True, linestyle='--', alpha=0.7)        
-                
+                        self.canv.axes.grid(True, linestyle='--', alpha=0.7)
+
+
+
                 self.canv.draw()
                 self.canv.figure.tight_layout()
+
+
             except Exception as e:
                 print("Plotting error:", e)
 
@@ -653,13 +667,22 @@ class Ui_MainWindow(object):
     
         return statsText
 
-    def getFile(self):
+    def getFileCSV(self):
         #Will get file address of csv file and read it
         files,_ = QFileDialog.getOpenFileNames(filter="CSV Files (*.csv)")
         if files:
             self.filenames = files
             print("Files :", self.filenames)
             self.readData()
+        else:
+            print("No files selected.")
+
+    def getFileIMG(self):
+        #Will get file address of img file and read it
+        file,_ = QFileDialog.getOpenFileName(filter = "Images (*.png *.xpm *.jpg)");
+        if file:
+            self.imgfile = file
+            print("Files :", self.imgfile)
         else:
             print("No files selected.")
 
