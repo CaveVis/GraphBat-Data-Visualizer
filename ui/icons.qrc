@@ -1,0 +1,27 @@
+<RCC>
+    <qresource prefix="/logo">
+        <file>images/logos/Logo V2.svg</file>
+    </qresource>
+    <qresource prefix="/backgrounds">
+        <file>images/bgs/Cave Background Digital.png</file>
+        <file>images/bgs/ExampleCaveMap.png</file>
+        <file>images/bgs/Cave Background Digital Dark.png</file>
+        <file>images/bgs/Cave Background Digital Light.png</file>
+    </qresource>
+    <qresource prefix="/icons">
+        <file>images/icons/chevron-down.svg</file>
+        <file>images/icons/file-plus.svg</file>
+        <file>images/icons/folder.svg</file>
+        <file>images/icons/info.svg</file>
+        <file>images/icons/maximize-2.svg</file>
+        <file>images/icons/menu.svg</file>
+        <file>images/icons/minimize-2.svg</file>
+        <file>images/icons/minus.svg</file>
+        <file>images/icons/save.svg</file>
+        <file>images/icons/settings.svg</file>
+        <file>images/icons/x.svg</file>
+        <file>images/icons/home.svg</file>
+        <file>images/icons/bat_flying.svg</file>
+        <file>images/icons/bat_hanging.svg</file>
+    </qresource>
+</RCC>

@@ -1,0 +1,124 @@
+*[style_ID="borderThick"]
+{
+border: 2px solid #727272;
+}
+
+*[style_ID="header"]
+{
+background-color: #000000;
+border: 1px solid #727272;
+}
+
+*[style_ID="banner"]
+{
+background-color: #232323;
+border: none;
+}
+
+*[style_ID="subtleText"]
+{
+color: #727272
+}
+
+*[style_ID="backgroundGraphic"]
+{
+border-image: url(:/backgrounds/images/bgs/Cave Background Digital Dark.png) stretch;
+background-position: center;
+}
+
+*[style_ID="backgroundDark"]
+{
+background-color: #000000;
+}
+
+*[style_ID="borderlessDark"]
+{
+background-color: #000000;
+border:none;
+}
+
+*[style_ID="borderless"]
+{
+border: none;
+}
+
+*[style_ID="taskbarBgLight"]
+{
+background-color: #0D0D0D;
+border:none;
+}
+
+*[style_ID="bigButton"]
+{
+background-color: #000000;
+border-color: #000000 ;
+color: #FFFFFF;
+font-size: 30px;
+}
+
+QPushButton
+{
+color: #FFFFFF;
+background-color: #242424;
+border: 1px solid #727272;
+padding:3px 6px 3px 6px;
+border-radius: 10px;
+}
+QPushButton:hover
+{
+background-color: #0D0D0D;
+}
+
+*[style_ID="toolboxBackground"]
+{
+background-color: #0D0D0D;
+border-bottom: 1px solid #727272;
+color: white;
+}
+
+#taskbar_container
+{
+background-color: #0D0D0D;
+border: 1px solid #727272;
+}
+
+QToolBox:tab[style_ID="tbTabTier1"]
+{
+background-color: #000000;
+border-bottom: 1px solid #727272;
+color: white;
+}
+
+QToolBox:tab[style_ID="tbTabTier2"]
+{
+background-color: #000000;
+border-bottom: 1px solid #727272;
+color: white;
+}
+
+QLabel
+{
+color: #FFFFFF
+}
+
+*[style_ID="logo"]
+{
+border-image: url(:/logo/images/logos/Logo V1.svg);
+border: none;
+}
+
+QScrollBar:vertical, QScrollBar:horizontal
+{
+background: #232323;
+}
+QScrollBar:handle:vertical, QScrollBar:handle:horizontal
+{
+background: #727272;
+border: 2px solid #232323;
+}
+QScrollBar:add-line:vertical, QScrollBar:sub-line:vertical, QScrollBar:add-line:horizontal, QScrollBar:sub-line:horizontal
+{
+background: #232323;
+}
+
+
