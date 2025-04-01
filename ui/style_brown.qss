@@ -15,6 +15,13 @@ background-color: #493721;
 border: none;
 }
 
+*[style_ID="footer"]
+{
+background-color: #1A110A;
+border-top: 1px solid #AD6300;
+}
+
+
 *[style_ID="subtleText"]
 {
 color: #AD6300
@@ -51,9 +58,16 @@ border:none;
 *[style_ID="bigButton"]
 {
 background-color: #1A110A;
+text-align: center;
 border-color: #000000 ;
 color: #FFFFFF;
-font-size: 30px;
+font-size: 40px;
+padding: 10px;
+}
+
+*[style_ID="iconButton"]
+{
+text-align: center;
 }
 
 QPushButton
@@ -74,7 +88,7 @@ background-color: #604C3A;
 {
 background-color: #252013;
 border-bottom: 1px solid #AD6300;
-color: white;
+color: #FFFFFF;
 }
 
 #taskbar_container
@@ -87,19 +101,21 @@ QToolBox:tab[style_ID="tbTabTier1"]
 {
 background-color: #1A110A;
 border-bottom: 1px solid #AD6300;
-color: white;
+color: #FFFFFF;
+font-size: 12pt;
 }
 
 QToolBox:tab[style_ID="tbTabTier2"]
 {
 background-color: #1A110A;
 border-bottom: 1px solid #AD6300;
-color: white;
+color: #FFFFFF;
+font-size: 10pt;
 }
 
 QLabel
 {
-color: #FFFFFF
+color: #FFFFFF;
 }
 
 *[style_ID="logo"]
@@ -126,4 +142,5 @@ QCheckBox
 {
 color: #FFFFFF
 }
+
 

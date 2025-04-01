@@ -3,7 +3,7 @@ import sys
 
 from PySide6.QtCore import Qt, QSettings
 from PyQt5.QtWidgets import QMainWindow, QApplication
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QFont
 from PySide6.QtWidgets import QApplication, QMainWindow, QSizeGrip
 from mainwindow import Ui_mainwindow
 
@@ -16,14 +16,26 @@ class MainWindow(QMainWindow):
 
         ### Load existing user preferences ###
         self.app_settings = QSettings("GraphBat", "userPrefs")
+        #Theme
         self.switchStylesheet(self.app_settings.value("theme", "style_brown.qss"))
         self.ui.appTheme_combobox.setCurrentIndex(self.app_settings.value("theme_index", 0))
+        #Fullscreen mode
         is_fullscreen = self.app_settings.value("is_fullscreen", True)
         if is_fullscreen:
             self.ui.maximize_button.clicked.connect(self.toggleMaximized())
             self.ui.fullscreen_checkbox.setChecked(True)
         else:
             self.ui.fullscreen_checkbox.setChecked(False)
+        #Font
+        is_dyslexic = self.app_settings.value("is_dyslexic", False)
+        if is_dyslexic:
+            print("read is dyslexic")
+            QApplication.instance().setFont(QFont("Comic Sans MS"))
+            self.ui.dyslexicfont_checkbox.setChecked(True)
+        else:
+            print("read is not dyslexic")
+            QApplication.instance().setFont(QFont("Verdana"))
+            self.ui.dyslexicfont_checkbox.setChecked(False)
         print(f"User preferences are saved at {self.app_settings.fileName()}")
 
         #################################
@@ -52,6 +64,8 @@ class MainWindow(QMainWindow):
         self.ui.home_button.clicked.connect(lambda: self.returnHome())
         ###################################################
 
+        ###########
+
         #### Homescreen taskbar buttons ############################
         #About button
         self.ui.about_button_side.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.about_page))
@@ -63,8 +77,8 @@ class MainWindow(QMainWindow):
         self.ui.load_button_side.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.load_page))
 
         ###Project taskbar ##################
-        self.ui.project_taskbar_toolbox.currentChanged.connect(lambda: self.updateToolboxIcons)
-
+        self.ui.project_taskbar_toolbox.currentChanged.connect(lambda: self.updateToolboxIcons(self.ui.project_taskbar_toolbox, self.ui.project_taskbar_toolbox.currentIndex()))
+        self.ui.toolbox_graphlist.currentChanged.connect(lambda: self.updateToolboxIcons(self.ui.toolbox_graphlist, self.ui.toolbox_graphlist.currentIndex()))
 
         #Close taskbar
         self.ui.close_button.clicked.connect(lambda: self.toggleSidebar())
@@ -93,6 +107,7 @@ class MainWindow(QMainWindow):
         ### Settings page buttons ##############
         self.ui.appTheme_combobox.currentIndexChanged.connect(self.updateAppTheme)
         self.ui.fullscreen_checkbox.stateChanged.connect(self.setFullscreenMode)
+        self.ui.dyslexicfont_checkbox.stateChanged.connect(self.setDyslexicFont)
 
         #######################
 
@@ -107,6 +122,9 @@ class MainWindow(QMainWindow):
         self.ui.header.mouseMoveEvent = moveWindow
 
         self.show()
+
+    def setDyslexicFont(self, is_dyslexic):
+        self.app_settings.setValue("is_dyslexic", is_dyslexic)
 
     def setFullscreenMode(self, state):
         self.app_settings.setValue("is_fullscreen", state)
@@ -155,12 +173,12 @@ class MainWindow(QMainWindow):
         self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)
         self.switchActiveTaskbar()
 
-    def updateToolboxIcons(self, index):
-        for i in range(self.ui.project_taskbar_toolbox.count()):
+    def updateToolboxIcons(self, toolbox, index):
+        for i in range(toolbox.count()):
             if i == index:
-                self.ui.project_taskbar_toolbox.setItemIcon(i, QIcon("images/icons/bat_flying.svg"))  # Set active icon
+                toolbox.setItemIcon(i, QIcon("images/icons/bat_flying.svg"))  # Set active icon
             else:
-                self.ui.project_taskbar_toolbox.setItemIcon(i, QIcon("images/icons/bat_hanging.svg"))  # Set inactive icon
+                toolbox.setItemIcon(i, QIcon("images/icons/bat_hanging.svg"))  # Set inactive icon
 
     def switchStylesheet(self, file_path):
         try:
