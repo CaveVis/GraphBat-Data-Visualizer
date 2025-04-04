@@ -1,0 +1,121 @@
+﻿html
+{
+    background-color: #1A110A;
+    font-family: "Verdana", "Helvetica", sans-serif;
+    color: #FFFFFF;
+    font-size: 14pt;
+}
+
+body
+{
+    margin: 20px 100px;
+    background-color: #493721;
+    padding: 30px;
+    border: 4px solid #AD6300;
+    border-radius: 2px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+}
+
+h1, h2, h3
+{
+    color: #AD6300;
+}
+
+.subtitle
+{
+    background-color: #1A110A;
+    text-align: center;
+    font-size: 16pt;
+    border: 2px solid #AD6300;
+    border-radius: 10px;
+    padding: 0px 10px 0px 10px;
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+}
+
+.floating_header
+{
+    background-color: rgba(37, 32, 19, 0.9);
+    padding: 20px 20px 20px 20px;
+    font-size: 30pt;
+    font-family: "Franklin Gothic Medium", "Verdana", sans-serif;
+    color: #AD6300;
+    border-radius: 10px;
+    box-shadow: 0 10px 16px 0 rgba(0, 0, 0, 0.4);
+    margin: auto;
+    width: 90%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.header_container
+{
+    position: relative;
+    text-align: center;
+    margin: auto;
+    width: 100%
+}
+
+.profile_card {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  background-color: #1A110A;
+  max-width: 300px;
+  margin: auto;
+  text-align: center;
+}
+
+.profile_role {
+  color: grey;
+  font-size: 18px;
+}
+
+.profile_button {
+  border: none;
+  outline: 0;
+  display: inline-block;
+  padding: 8px;
+  color: white;
+  background-color: #AD6300;;
+  text-align: center;
+  cursor: pointer;
+  width: 100%;
+  font-size: 18px;
+}
+
+a {
+  color: white;
+}
+
+.profile_button:hover, a:hover {
+  opacity: 0.7;
+}
+
+li::marker
+{
+    color: #AD6300;
+}
+
+table
+{
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.td_profile
+{
+    width: 300px;
+}
+
+.td_profile_text
+{
+    width: 800px;
+    vertical-align: top;
+    padding: 20px;
+}
+
+.grid_container
+{
+    display: flex;
+    align-items: center;
+}
