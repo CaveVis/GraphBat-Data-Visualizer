@@ -466,14 +466,15 @@ class Ui_MainWindow(object):
                     if result == QtWidgets.QDialog.Accepted:
                         if dialog.result == "remove":
                             # Remove the outliers from the dataframe by setting to NaN
-                            outlier_indices = anomaly_info['values'].index
-                            self.df.loc[outlier_indices, sensor_col] = None
-
-                            #Interpolate only the NaN values just created
-                            self.df[sensor_col] = self.df[sensor_col].interpolate(method='linear')
-
-                            #Mark as cleaned
-                            self.cleanedAnomalyColumns.add(sensor_col)
+                            outlier_indices = [idx for idx in anomaly_info['values'].index 
+                                              if idx in self.df.index]
+                            
+                            if outlier_indices:  # Only proceed if we have valid indices
+                                self.df.loc[outlier_indices, sensor_col] = None
+                                #Interpolate only the NaN values just created
+                                self.df[sensor_col] = self.df[sensor_col].interpolate(method='linear')
+                                 #Mark as cleaned
+                                self.cleanedAnomalyColumns.add(sensor_col)
                             
                         elif dialog.result == "ignore":
                             self.ignoredAnomalyColumns.add(sensor_col)  #Add sensor to the ignored sensors set 
@@ -685,9 +686,8 @@ class Ui_MainWindow(object):
 
     def detectAnomalies(self, data):
         """
-        Unified anomaly detection for single columns or multiple columns
+        Enhanced anomaly detection with better spike handling and duplicate management
         """
-
         clean_data = data.dropna()
         sensor_name = clean_data.name.replace("Temperature_", "") if hasattr(clean_data, 'name') else "Unknown"
 
@@ -698,41 +698,52 @@ class Ui_MainWindow(object):
                 "global_lower_bound": None,
                 "global_upper_bound": None,
                 "total_points": 0,
-                "sensor_name": clean_data.name.replace("Temperature_", "") if clean_data.name else "Unknown"
+                "sensor_name": sensor_name
             }
-    
-        # Calculate quartiles and IQR
-        Q1 = clean_data.quantile(0.25)    #Median of lower half
-        Q3 = clean_data.quantile(0.75)    #Median of upper half
-        IQR = Q3 - Q1   #Spread of data of middle 50%
 
-        # Identify outliers using the 1.5 * IQR rule
+        # Calculate quartiles and IQR
+        Q1 = clean_data.quantile(0.25, interpolation='midpoint')
+        Q3 = clean_data.quantile(0.75, interpolation='midpoint')
+        IQR = Q3 - Q1
+
+        # Identify IQR outliers
         threshold = 1.5
         lower_bound = Q1 - threshold * IQR
         upper_bound = Q3 + threshold * IQR
-
-        # Find local outliers
-        outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
+        iqr_outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
         
-        #Spike detection - First derivative test
+        # Spike detection with adaptive threshold
         diff = clean_data.diff().abs()
         if not diff.empty:
-            #Using percentile instead of median for better extreme detection
-            spike_threshold = diff.quantile(0.95)  # 95th percentile 
+            # Dynamic spike threshold based on rolling window
+            rolling_std = diff.rolling(window=10, min_periods=1).std()
+            spike_threshold = 3 * rolling_std  # 3 standard deviations
             spike_outliers = clean_data[diff > spike_threshold]
+            
+            # Combine outliers while preserving important cases
+            combined_outliers = pd.concat([iqr_outliers, spike_outliers])
+            
+            # Smart de-duplication - keep all if they're significant spikes
+            if not combined_outliers.empty:
+                # Only remove duplicates that aren't significant spikes
+                mask = (combined_outliers.index.duplicated(keep='first') & 
+                    (diff.loc[combined_outliers.index] < 2 * rolling_std.loc[combined_outliers.index]))
+                outliers = combined_outliers[~mask]
+            else:
+                outliers = combined_outliers
+        else:
+            outliers = iqr_outliers
 
-            outliers = pd.concat([outliers, spike_outliers]) #.drop_duplicates()
-        
-        # Ensure outliers has the original DatetimeIndex intact
-        print(f"Outlier index type: {type(outliers.index)}")
         return {
             "count": len(outliers),
-            "values": outliers,
+            "values": outliers.sort_values(),
             "global_lower_bound": lower_bound,
             "global_upper_bound": upper_bound,
-            "total_points" : len(clean_data),
-            "sensor_name": sensor_name
-        }   
+            "total_points": len(clean_data),
+            "sensor_name": sensor_name,
+            "iqr_outliers": len(iqr_outliers),
+            "spike_outliers": len(outliers) - len(iqr_outliers)
+        }  
   
     def calculateStatistics(self, clean_data):
         try:
@@ -778,7 +789,11 @@ class Ui_MainWindow(object):
             print("No files selected.")
 
     def readData(self):
-
+    
+        """
+        Takes csv file(s) and returns a dataframe with index as datetime and datatype as columns.
+        
+        """
         self.anomaly_data_by_column = {}
         merged_dfs = []
 
@@ -808,10 +823,7 @@ class Ui_MainWindow(object):
                                                              format="%m/%d/%Y %H:%M:%S", errors="coerce")
                 # Drop rows with invalid dates
                 single_df = single_df.dropna(subset=["Date-Time (EST)"])
-
-                #Interpolate based off before and after missing val
-                #single_df.interpolate(method='linear', inplace=True)
-
+                
                 # Rename temperature column to include sensor name
                 single_df = single_df.rename(
                     columns={'Temperature   (°C)': temp_col_name}
@@ -820,20 +832,24 @@ class Ui_MainWindow(object):
                 #Set datetime as index
                 single_df = single_df.set_index("Date-Time (EST)")
 
+                #Resample to every two minutes for consistency
+                single_df = single_df.resample('2min').mean().interpolate(method='linear')
+                
+                #Detect anomalies
                 anomaly_info = self.detectAnomalies(single_df[temp_col_name])
                 if anomaly_info["count"] > 0:
                     self.anomaly_data_by_column[temp_col_name] = anomaly_info
 
                 # Append to list for merging
                 merged_dfs.append(single_df)
-                
+
             except Exception as e:
                 print(f"Error processing {file}: {str(e)}")
                 traceback.print_exc()
                 continue
 
         # Merge the dataframes
-        if merged_dfs:       
+        if merged_dfs:
             # Start with first dataframe
             if len(merged_dfs) == 1:
                 # If only one dataframe, no need to merge
@@ -841,26 +857,23 @@ class Ui_MainWindow(object):
             else:
                 self.df = merged_dfs[0]
                 for df in merged_dfs[1:]:
-                    self.df = pd.merge(self.df, df, on = "Date-Time (EST)", how='outer')
+                    self.df = pd.concat(merged_dfs, axis=1)
     
             # Set datetime index and sort
             self.df.index = pd.to_datetime(self.df.index)
             self.df = self.df.sort_index()
+            
+            #Drop rows that have any missing values for calculation reasons
+            self.df = self.df.dropna(axis=0)
+
+            #Don't have to interpolate since the removed values are on edges
 
             # Now interpolate after merging
-            for col in self.df.columns:
+            #for col in self.df.columns:
                 # First fill NaN with linear interpolation
-                self.df[col] = self.df[col].interpolate(method='linear')
-                # Then forward/backward fill any remaining NaNs at edges
-                self.df[col] = self.df[col].ffill().bfill()
-
-            #Detect anomalies after merging
-            self.anomaly_data_by_column.clear()
-            for col in self.df.columns:
-                anomaly_info = self.detectAnomalies(self.df[col])
-                if anomaly_info["count"] > 0:
-                    self.anomaly_data_by_column[col] = anomaly_info
-        
+                #self.df[col] = self.df[col].interpolate(method='linear')
+                #Then forward/backward fill any remaining NaNs at edges
+                #self.df[col] = self.df[col].ffill().bfill()
 
             # Update time range controls
             self.startTimeEdit.blockSignals(True)
