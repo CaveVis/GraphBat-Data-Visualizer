@@ -273,8 +273,8 @@ class Ui_MainWindow(object):
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
 
-        self.ignoredAnomalyColumns = set() #Track columns that have had anomalies ignored
-        self.cleanedAnomalyColumns = set() #Initialize a set to track cleaned column
+        self.ignored_anomaly_columns = set() #Track columns that have had anomalies ignored
+        self.cleaned_anomaly_columns = set() #Initialize a set to track cleaned column
 
         self.anomaly_data_by_column = {} #Will store detected anomalies per sensor
 
@@ -403,8 +403,8 @@ class Ui_MainWindow(object):
         if hasattr(self, 'ignore_anomalies'):
             delattr(self, 'ignore_anomalies')
         #Reset column state trackers
-        self.cleanedAnomalyColumns = set()  
-        self.ignoredAnomalyColumns = set() 
+        self.cleaned_anomaly_columns = set()  
+        self.ignored_anomaly_columns = set() 
         self.update(self.themes[0])
         print("Data has been cleared")
 
@@ -457,7 +457,7 @@ class Ui_MainWindow(object):
                 #Using previously detected anomalies stored in anomaly_data_by_column
                 for sensor_col, anomaly_info in self.anomaly_data_by_column.items():
                     #Skip if sensor's anomalies have been previously ignored or cleaned
-                    if sensor_col in self.ignoredAnomalyColumns or sensor_col in self.cleanedAnomalyColumns:
+                    if sensor_col in self.ignored_anomaly_columns or sensor_col in self.cleaned_anomaly_columns:
                         continue
                     
                     dialog = AnomalyDialog(MainWindow, anomaly_info)
@@ -474,10 +474,10 @@ class Ui_MainWindow(object):
                                 #Interpolate only the NaN values just created
                                 self.df[sensor_col] = self.df[sensor_col].interpolate(method='linear')
                                  #Mark as cleaned
-                                self.cleanedAnomalyColumns.add(sensor_col)
+                                self.cleaned_anomaly_columns.add(sensor_col)
                             
                         elif dialog.result == "ignore":
-                            self.ignoredAnomalyColumns.add(sensor_col)  #Add sensor to the ignored sensors set 
+                            self.ignored_anomaly_columns.add(sensor_col)  #Add sensor to the ignored sensors set 
                         elif dialog.result == "view":
                             sensors_to_show_anomalies.add(sensor_col)
 
@@ -530,16 +530,20 @@ class Ui_MainWindow(object):
                                 except Exception as e:
                                     print(f"Error plotting outliers for {c}:{e}")
                 
-                    #Configure plot
+                    # Configure plot with larger fonts
+                    plt.rcParams.update({'font.size': 12})  # Set base font size
+
                     self.canv.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
                     self.canv.axes.xaxis.set_major_locator(matplotlib.dates.AutoDateLocator())
-                    plt.setp(self.canv.axes.get_xticklabels(), rotation=45, ha='right')
-                    legend = self.canv.axes.legend()
-                    legend.set_draggable(True)
-                    self.canv.axes.set_xlabel('Date-Time')
-                    self.canv.axes.set_ylabel('Measured Temperature(°C)')
-                    self.canv.axes.set_title('Temperature in Cave Over Time')
-                
+                    # Rotate and adjust x-axis labels with larger font
+                    plt.setp(self.canv.axes.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+                    plt.setp(self.canv.axes.get_yticklabels(), fontsize=10)
+                    #legend = self.canv.axes.legend()
+                    #legend.set_draggable(True)
+                    self.canv.axes.set_xlabel('Date-Time', fontsize=18)
+                    self.canv.axes.set_ylabel('Measured Temperature(°C)', fontsize=18)
+                    self.canv.axes.set_title('Temperature in Cave Over Time', fontsize=22, pad=20)
+  
                 elif plotType == "Bar Graph":
                     try:
                         # For bar graphs, resample the data to a suitable frequency
@@ -656,6 +660,7 @@ class Ui_MainWindow(object):
 
                 self.canv.draw()
                 self.canv.figure.tight_layout()
+
 
             except Exception as e:
                 print("Plotting error:", e)
@@ -794,7 +799,8 @@ class Ui_MainWindow(object):
         Takes csv file(s) and returns a dataframe with index as datetime and datatype as columns.
         
         """
-        self.anomaly_data_by_column = {}
+        #Keep track of anomalies, dont reset when adding new sensors
+        existing_anomaly_data = self.anomaly_data_by_column if hasattr(self, 'anomaly_data_by_column') else {}
         merged_dfs = []
 
         #First pass: Read and preprocess all files
@@ -802,6 +808,10 @@ class Ui_MainWindow(object):
             try:
                 sensor_name = os.path.basename(file).split('.')[0]
                 temp_col_name = f"Temperature_{sensor_name}"
+
+                # Skip if this sensor has already been processed this session
+                if temp_col_name in self.cleaned_anomaly_columns or temp_col_name in self.ignored_anomaly_columns:
+                    continue
 
                 try:
                     #reads the csv files, only the Date time and temperature column, and saves it into a dataframe
@@ -835,10 +845,13 @@ class Ui_MainWindow(object):
                 #Resample to every two minutes for consistency
                 single_df = single_df.resample('2min').mean().interpolate(method='linear')
                 
-                #Detect anomalies
-                anomaly_info = self.detectAnomalies(single_df[temp_col_name])
-                if anomaly_info["count"] > 0:
-                    self.anomaly_data_by_column[temp_col_name] = anomaly_info
+                #Only detect anomalies if not already cleaned
+                if (temp_col_name not in existing_anomaly_data and 
+                    temp_col_name not in self.cleaned_anomaly_columns and 
+                    temp_col_name not in self.ignored_anomaly_columns):
+                    anomaly_info = self.detectAnomalies(single_df[temp_col_name])
+                    if anomaly_info["count"] > 0:
+                        existing_anomaly_data[temp_col_name] = anomaly_info
 
                 # Append to list for merging
                 merged_dfs.append(single_df)
@@ -848,32 +861,18 @@ class Ui_MainWindow(object):
                 traceback.print_exc()
                 continue
 
-        # Merge the dataframes
+            #Save the updated anomaly data
+            self.anomaly_data_by_column = existing_anomaly_data
+
         if merged_dfs:
-            # Start with first dataframe
-            if len(merged_dfs) == 1:
-                # If only one dataframe, no need to merge
-                self.df = merged_dfs[0]
-            else:
-                self.df = merged_dfs[0]
-                for df in merged_dfs[1:]:
-                    self.df = pd.concat(merged_dfs, axis=1)
-    
+            #Merge dataframes, if only one dataframe then return it by itself
+            self.df = pd.concat(merged_dfs, axis=1) if len(merged_dfs) > 1 else merged_dfs[0]
             # Set datetime index and sort
             self.df.index = pd.to_datetime(self.df.index)
             self.df = self.df.sort_index()
             
             #Drop rows that have any missing values for calculation reasons
             self.df = self.df.dropna(axis=0)
-
-            #Don't have to interpolate since the removed values are on edges
-
-            # Now interpolate after merging
-            #for col in self.df.columns:
-                # First fill NaN with linear interpolation
-                #self.df[col] = self.df[col].interpolate(method='linear')
-                #Then forward/backward fill any remaining NaNs at edges
-                #self.df[col] = self.df[col].ffill().bfill()
 
             # Update time range controls
             self.startTimeEdit.blockSignals(True)
