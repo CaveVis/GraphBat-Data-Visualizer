@@ -31,11 +31,11 @@ import traceback
 
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
-    def __init__(self,parent=None,width=5, height = 5, dpi = 120):
+    def __init__(self, parent=None,width=5, height = 5, dpi = 120):
         f = Figure(figsize = (width,height),dpi = dpi)
         self.axes= f.add_subplot(111)
         super(MatplotlibCanvas,self).__init__(f)
-        f.tight_layout()
+        f.tight_layout(pad=3)
 
 class AnomalyDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, anomaly_info=None):
@@ -149,7 +149,7 @@ class Ui_MainWindow(object):
         self.gridLayout = QtWidgets.QGridLayout(self.centralwidget)
         self.gridLayout.setObjectName("gridLayout")
 
-        #Horizontal layour for controls
+        #Horizontal layout for controls
         self.horizontalLayout = QtWidgets.QHBoxLayout()
         self.horizontalLayout.setObjectName("horizontalLayout")
 
@@ -273,10 +273,7 @@ class Ui_MainWindow(object):
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
 
-        self.ignored_anomaly_columns = set() #Track columns that have had anomalies ignored
-        self.cleaned_anomaly_columns = set() #Initialize a set to track cleaned column
-
-        self.anomaly_data_by_column = {} #Will store detected anomalies per sensor
+        self.sensor_states = {} #Key: sensor name, Value: dict of state/data
 
         #Create a dock widget for statistics
         self.statsDockWidget = QDockWidget("Statistics Panel", MainWindow)
@@ -400,11 +397,10 @@ class Ui_MainWindow(object):
         self.df =pd.DataFrame()
         self.filenames = []
         #Reset anomaly handling state
-        if hasattr(self, 'ignore_anomalies'):
-            delattr(self, 'ignore_anomalies')
-        #Reset column state trackers
-        self.cleaned_anomaly_columns = set()  
-        self.ignored_anomaly_columns = set() 
+        self.sensor_states = {}
+        if hasattr(self, 'processed_files'):
+            delattr(self, 'processed_files')
+ 
         self.update(self.themes[0])
         print("Data has been cleared")
 
@@ -416,6 +412,11 @@ class Ui_MainWindow(object):
         print("V from CB: ", v)
         plt.clf()
         plt.style.use(v)
+        # Save current figure size before deleting
+        if hasattr(self, 'canv'):
+            old_width, old_height = self.canv.figure.get_size_inches()
+        else:
+            old_width, old_height = 8, 6  # Default size
 
         try:
             self.horizontalLayout.removeWidget(self.toolbar)
@@ -435,7 +436,7 @@ class Ui_MainWindow(object):
             pass
         
         #Create new canvas and toolbar
-        self.canv = MatplotlibCanvas(self)
+        self.canv = MatplotlibCanvas(self, width=old_width, height=old_height)
         self.toolbar = Navi(self.canv,self.centralwidget)
 
         #Add spacerItem1 if it doesn't exist
@@ -450,41 +451,61 @@ class Ui_MainWindow(object):
         #Clear the axes
         self.canv.axes.cla()
     
-        sensors_to_show_anomalies = set()
         if not self.df.empty:
             try: 
-                #Process anomaly dialogs if anomalies were found
-                #Using previously detected anomalies stored in anomaly_data_by_column
-                for sensor_col, anomaly_info in self.anomaly_data_by_column.items():
-                    #Skip if sensor's anomalies have been previously ignored or cleaned
-                    if sensor_col in self.ignored_anomaly_columns or sensor_col in self.cleaned_anomaly_columns:
+                # Process anomaly dialogs using sensor_states
+                for sensor_col in list(self.sensor_states.keys()):
+                    state = self.sensor_states[sensor_col]
+                    
+                    # Skip if already processed
+                    if state['status'] in ('cleaned', 'ignored', 'viewed'):
                         continue
                     
-                    dialog = AnomalyDialog(MainWindow, anomaly_info)
-                    result = dialog.exec_()
+                    # Only show dialog if we have anomalies
+                    if not state['anomalies'].empty:
+                        dialog = AnomalyDialog(MainWindow, {
+                            'sensor_name': sensor_col.replace("Temperature_", ""),
+                            'count': len(state['anomalies']),
+                            'values': state['anomalies'],
+                            'global_lower_bound': state['bounds']['lower'],
+                            'global_upper_bound': state['bounds']['upper'],
+                            'total_points': len(state['original_data'])
+                        })
+                        
+                        result = dialog.exec_()
 
-                    if result == QtWidgets.QDialog.Accepted:
-                        if dialog.result == "remove":
-                            # Remove the outliers from the dataframe by setting to NaN
-                            outlier_indices = [idx for idx in anomaly_info['values'].index 
-                                              if idx in self.df.index]
-                            
-                            if outlier_indices:  # Only proceed if we have valid indices
-                                self.df.loc[outlier_indices, sensor_col] = None
-                                #Interpolate only the NaN values just created
-                                self.df[sensor_col] = self.df[sensor_col].interpolate(method='pad').interpolate(method='bfill')
-                                 #Mark as cleaned
-                                self.cleaned_anomaly_columns.add(sensor_col)
-                            
-                        elif dialog.result == "ignore":
-                            self.ignored_anomaly_columns.add(sensor_col)  #Add sensor to the ignored sensors set 
-                        elif dialog.result == "view":
-                            sensors_to_show_anomalies.add(sensor_col)
+                        if result == QtWidgets.QDialog.Accepted:
+                            if dialog.result == "remove":
+                                # Create cleaned version
+                                cleaned_data = state['original_data'].copy()
+                                cleaned_data.loc[state['anomalies'].index] = None
+                                cleaned_data = cleaned_data.ffill().bfill()
+                                
+                                # Update state in sensor_states
+                                self.sensor_states[sensor_col].update({
+                                    'status': 'cleaned',
+                                    'processed_data': cleaned_data
+                                })
+                                
+                            elif dialog.result == "ignore":
+                                self.sensor_states[sensor_col]['status'] = 'ignored'
+                                
+                            elif dialog.result == "view":
+                                self.sensor_states[sensor_col]['status'] = 'viewed'
+                
+                # Rebuild main dataframe after any changes
+                dfs = []
+                for sensor_name, state in self.sensor_states.items():
+                    dfs.append(state['processed_data'])
+                
+                self.df = pd.concat(dfs, axis=1) if dfs else pd.DataFrame()
+                #Make sure that no rows exist without data
+                self.df = self.df.sort_index().dropna(axis=0)
 
-                #Write merged df as CSV to folder 'datafiles'
-                os.makedirs('datafiles', exist_ok=True)  # Ensures the folder exists
-                file_path = os.path.join('datafiles', 'alteredDF.csv')  # Creates proper path
-                self.df.to_csv(file_path)  # Saves the file to the specified path
+                #Write altered to CSV
+                os.makedirs('datafiles', exist_ok=True)
+                file_path = os.path.join('datafiles', 'alteredDF.csv')
+                self.df.to_csv(file_path)
 
                 #Update statistics
                 self.updateStatistics()
@@ -515,28 +536,28 @@ class Ui_MainWindow(object):
                         if not filtered_df[c].empty:
                             self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
 
-                    #Plot anomalies if requested to view them
-                    for c in sensors_to_show_anomalies:
-                        if c in self.anomaly_data_by_column:
-                            outliers = self.anomaly_data_by_column[c]['values']
-                            # Plot outliers as red dots
+                    # Modified anomaly plotting:
+                    for sensor_col, state in self.sensor_states.items():
+                        if state['status'] == 'viewed' and not state['anomalies'].empty:
+                            outliers = self.sensor_states[sensor_col]['anomalies']
                             if not outliers.empty:
                                 try:
-                                    #Ensure values are within the time range
-                                    valid_outliers = outliers[(outliers.index >= startTime) & (outliers.index <= endTime)]
+                                    valid_outliers = outliers[(outliers.index >= startTime) & 
+                                                             (outliers.index <= endTime)]
                                     if not valid_outliers.empty:
-                                        # Debug print to verify timestamps
-                                        print(f"Plotting outliers for {c}:")
-                                        print(f"First few timestamps: {valid_outliers.index[:5]}")
-                                        self.canv.axes.scatter(valid_outliers.index, valid_outliers.values, color='red', 
-                                                      s=5, label=f"{c} outliers", zorder=3) 
-                                    else:
-                                        print(f"No valid outliers in selected time range for {c}")  
+                                        self.canv.axes.scatter(
+                                            valid_outliers.index, 
+                                            valid_outliers.values, 
+                                            color='red', 
+                                            s=5, 
+                                            label=f"{sensor_col.replace('Temperature_', '')} outliers",
+                                            zorder=3
+                                        )
                                 except Exception as e:
-                                    print(f"Error plotting outliers for {c}:{e}")
-                
+                                    print(f"Error plotting outliers: {e}")
+
                     # Configure plot with larger fonts
-                    plt.rcParams.update({'font.size': 12})  # Set base font size
+                    plt.rcParams.update({'font.size': 10})  # Set base font size
 
                     self.canv.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
                     self.canv.axes.xaxis.set_major_locator(matplotlib.dates.AutoDateLocator())
@@ -804,9 +825,6 @@ class Ui_MainWindow(object):
         Takes csv file(s) and returns a dataframe with index as datetime and datatype as columns.
         
         """
-        #Keep track of anomalies, dont reset when adding new sensors
-        existing_anomaly_data = self.anomaly_data_by_column if hasattr(self, 'anomaly_data_by_column') else {}
-        merged_dfs = []
 
         #First pass: Read and preprocess all files
         for file in self.filenames:
@@ -814,9 +832,9 @@ class Ui_MainWindow(object):
                 sensor_name = os.path.basename(file).split('.')[0]
                 temp_col_name = f"Temperature_{sensor_name}"
 
-                # Skip if this sensor has already been processed this session
-                #if temp_col_name in self.cleaned_anomaly_columns or temp_col_name in self.ignored_anomaly_columns:
-                 #   continue
+                #Skip if already processed
+                if temp_col_name in self.sensor_states:
+                    continue
 
                 try:
                     #reads the csv files, only the Date time and temperature column, and saves it into a dataframe
@@ -824,6 +842,7 @@ class Ui_MainWindow(object):
                         file,encoding = 'utf-8',
                         usecols=['Date-Time (EST)', 'Temperature   (°C)']
                         )
+                    
                 except ValueError as e:
                     print(f"Missing required columns in {file}: {e}")
                     continue
@@ -860,55 +879,53 @@ class Ui_MainWindow(object):
                     columns={'Temperature   (°C)': temp_col_name}
                     )
                 
-                #Only detect anomalies if not already cleaned
-                if (temp_col_name not in existing_anomaly_data and 
-                    temp_col_name not in self.cleaned_anomaly_columns and
-                    temp_col_name not in self.ignored_anomaly_columns):
-                    anomaly_info = self.detectAnomalies(single_df[temp_col_name])
-                    if anomaly_info["count"] > 0:
-                        existing_anomaly_data[temp_col_name] = anomaly_info
+                 # Detect anomalies
+                anomaly_info = self.detectAnomalies(single_df[temp_col_name])
 
-                # Append to list for merging
-                merged_dfs.append(single_df)
-
-                #Save the updated anomaly data
-                self.anomaly_data_by_column = existing_anomaly_data
+                # Store initial state
+                self.sensor_states[temp_col_name] = {
+                    'status': 'raw',
+                    'original_data': single_df[[temp_col_name]].copy(),
+                    'processed_data': single_df[[temp_col_name]].copy(),
+                    'anomalies': anomaly_info['values'],
+                    'bounds': {  
+                        'lower': anomaly_info['global_lower_bound'],
+                        'upper': anomaly_info['global_upper_bound']
+                    }
+                }
 
             except Exception as e:
                 print(f"Error processing {file}: {str(e)}")
                 traceback.print_exc()
                 continue
 
-        if merged_dfs:
-            #Merge dataframes, if only one dataframe then return it by itself
-            self.df = pd.concat(merged_dfs, axis=1) if len(merged_dfs) > 1 else merged_dfs[0]
-            # Set datetime index and sort
+        # Build main dataframe from sensor states
+        dfs = []
+        for sensor, state in self.sensor_states.items():
+            dfs.append(state['processed_data'])
+        
+        self.df = pd.concat(dfs, axis=1) if dfs else pd.DataFrame()    
+
+        if not self.df.empty:
             self.df.index = pd.to_datetime(self.df.index)
-            self.df = self.df.sort_index()
+            self.df = self.df.sort_index().dropna(axis=0)
             
-            #Drop rows that have any missing values for calculation reasons
-            self.df = self.df.dropna(axis=0)
-
-            #Write merged df as CSV to folder 'datafiles'
-            os.makedirs('datafiles', exist_ok=True)  # Ensures the folder exists
-            file_path = os.path.join('datafiles', 'originalDF.csv')  # Creates proper path
-            self.df.to_csv(file_path)  # Saves the file to the specified path
-
             # Update time range controls
             self.startTimeEdit.blockSignals(True)
             self.endTimeEdit.blockSignals(True)
-
-            #Set default time range
             self.startTimeEdit.setDateTime(QtCore.QDateTime(self.df.index.min()))
             self.endTimeEdit.setDateTime(QtCore.QDateTime(self.df.index.max()))
-
             self.startTimeEdit.blockSignals(False)
             self.endTimeEdit.blockSignals(False)
-
+            
+            # Write CSV
+            os.makedirs('datafiles', exist_ok=True)
+            file_path = os.path.join('datafiles', 'originalDF.csv')
+            self.df.to_csv(file_path)
+            
             self.updateStatistics()
             self.update(self.themes[0])
-        else:
-            print("Data not valid")
+        
 
     def retranslateUi(self, MainWindow):
         _translate = QtCore.QCoreApplication.translate
