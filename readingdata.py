@@ -14,6 +14,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
 import matplotlib.pyplot as plt
+import mplcursors #pip install mplcursors
 matplotlib.use('Qt5Agg')
 from PyQt5.QtWidgets import QFileDialog, QDateTimeEdit, QDockWidget, QTabWidget, QTextEdit
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
@@ -36,6 +37,97 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         self.axes= f.add_subplot(111)
         super(MatplotlibCanvas,self).__init__(f)
         f.tight_layout(pad=3)
+
+#Column selction dialog box
+class ColumnSelectionDialog(QtWidgets.QDialog):
+    def __init__(self, columns, parent=None):
+        super(ColumnSelectionDialog, self).__init__(parent)
+        self.setWindowTitle("Select Columns To Read")
+        self.resize(400, 300)
+
+        self.layout = QtWidgets.QVBoxLayout(self)
+
+        # Test description directing user
+        self.description = QtWidgets.QLabel("Select an index column from you inputted CSV files and a data column:")
+        self.layout.addWidget(self.description)
+
+        # Selection of index columns
+        self.index_group = QtWidgets.QGroupBox("Index Column (column that will tie all columns together ex:date-time)")
+        self.index_layout = QtWidgets.QVBoxLayout(self.index_group)
+        self.index_combo = QtWidgets.QComboBox()
+        self.index_combo.addItems(columns)
+        self.index_layout.addWidget(self.index_combo)
+        self.layout.addWidget(self.index_group)
+
+        # Selection of data columns
+        self.data_group = QtWidgets.QGroupBox("Data Columns")
+        self.data_layout = QtWidgets.QVBoxLayout(self.data_group)
+
+        # Widget for adding spefic columns columns
+        self.data_list = QtWidgets.QListWidget()
+        self.data_list.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        for column in columns:
+            item = QtWidgets.QListWidgetItem(column)
+            self.data_list.addItem(item)
+        self.data_layout.addWidget(self.data_list)
+        self.layout.addWidget(self.data_group)
+
+        # Rename selected columns widgets
+        self.rename_group = QtWidgets.QGroupBox("Rename Selected Data Column (Optional)")
+        self.rename_layout = QtWidgets.QHBoxLayout(self.rename_group)
+        self.rename_label = QtWidgets.QLabel("New Name:")
+        self.rename_edit = QtWidgets.QLineEdit()
+        self.rename_button = QtWidgets.QPushButton("Set Name")
+        self.rename_layout.addWidget(self.rename_label)
+        self.rename_layout.addWidget(self.rename_edit)
+        self.rename_layout.addWidget(self.rename_button)
+        self.layout.addWidget(self.rename_group)
+
+        # Connect rename button
+        self.rename_button.clicked.connect(self.rename_selected)
+
+        # Buttons for column selection
+        self.button_box = QtWidgets.QDialogButtonBox(
+            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
+        )
+        self.layout.addWidget(self.button_box)
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        # Initialize choices
+        self.selected_index = ""
+        self.selected_data = []
+        self.column_rename = {}
+    #Rename selected column
+    def rename_selected(self):
+        selected_item = self.data_list.selectedItems()
+        if selected_item and self.rename_edit.text().strip():
+            colum_n = selected_item[0].text()
+            new_name = self.rename_edit.text().strip()
+            self.column_rename[colum_n] = new_name
+
+            # Update show new names
+            selected_item[0].setText(f"{colum_n} → {new_name}")
+
+            # Clear the edit
+            self.rename_edit.clear()
+    #Takes in user selection from index and data
+    def accept(self):
+        self.selected_index = self.index_combo.currentText()
+        self.selected_data = [item.text().split(" → ")[0] for item in
+                              [self.data_list.item(i) for i in range(self.data_list.count())
+                               if self.data_list.item(i).isSelected()]]
+
+        # Error checking
+        if not self.selected_index:
+            QtWidgets.QMessageBox.warning(self, "Selection Error", "Please select an index column")
+            return
+
+        if not self.selected_data:
+            QtWidgets.QMessageBox.warning(self, "Selection Error", "Please select at least one data column")
+            return
+
+        super(ColumnSelectionDialog, self).accept()
 
 class AnomalyDialog(QtWidgets.QDialog):
     def __init__(self, parent=None, anomaly_info=None):
@@ -272,6 +364,11 @@ class Ui_MainWindow(object):
         self.df = pd.DataFrame()
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
+        self.column_selection = {}
+        self.rename_dict = {}
+        self.cleaned_anomaly_columns = set()
+        self.ignored_anomaly_columns = set()
+        self.sensor_states = {}
 
         self.sensor_states = {} #Key: sensor name, Value: dict of state/data
 
@@ -534,8 +631,8 @@ class Ui_MainWindow(object):
                     #First plot all clean_data points regardless of anomaly status
                     for c in filtered_df.columns:
                         if not filtered_df[c].empty:
-                            self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
-
+                            line = self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
+                            mplcursors.cursor(line)
                     # Modified anomaly plotting:
                     for sensor_col, state in self.sensor_states.items():
                         if state['status'] == 'viewed' and not state['anomalies'].empty:
@@ -622,7 +719,8 @@ class Ui_MainWindow(object):
                         for i, col in enumerate(agg_df.columns):
                             # Calculate position for this set of bars
                             pos = dates_num + (i * width)
-                            self.canv.axes.bar(pos, agg_df[col], width=width, label=col)
+                            bar = self.canv.axes.bar(pos, agg_df[col], width=width, label=col)
+                            mplcursors.cursor(bar)
                         
                         # Configure plot
                         self.canv.axes.set_xlabel('Time Period')
@@ -806,7 +904,34 @@ class Ui_MainWindow(object):
         if files:
             self.filenames = files
             print("Files :", self.filenames)
-            self.readData()
+            #Place to store column selction
+            self.column_selection = {}
+
+            for file in files:
+                try:
+                    sample_df =pd.read_csv(file, nrows=0, encoding='utf-8')
+                    column = sample_df.columns.tolist()
+
+                    #Dialog box shows up to select columns
+                    dial = ColumnSelectionDialog(column)
+                    if dial.exec_() == QtWidgets.QDialog.Accepted:
+                        self.column_selection[file] = {
+                            'index': dial.selected_index,
+                            'data': dial.selected_data,
+                            'renames': dial.column_rename
+                        }
+                    else:
+                        # If a user cancels selection, remove that file
+                        self.filenames.remove(file)
+                #if there is am error reading in the columns, remove if from the list
+                except Exception as e:
+                    print(f"Error reading columns from {file}: {e}")
+                    self.filenames.remove(file)
+            #Once the files are read in and the columns are selected, they put through readData
+            if self.filenames:
+                self.readData()
+            else:
+                print("No valid files selected.")
         else:
             print("No files selected.")
 
@@ -829,70 +954,103 @@ class Ui_MainWindow(object):
         #First pass: Read and preprocess all files
         for file in self.filenames:
             try:
-                sensor_name = os.path.basename(file).split('.')[0]
-                temp_col_name = f"Temperature_{sensor_name}"
-
-                #Skip if already processed
-                if temp_col_name in self.sensor_states:
+                # Get column selections for this file
+                if file not in self.column_selection:
+                    print(f"No column selections for {file}, skipping file")
                     continue
 
+                select = self.column_selection[file]
+                index_col = select['index']
+                data_col = select['data']
+                rename = select['renames']
+
+                sensor_name = os.path.basename(file).split('.')[0]
+
+                # Skip if this sensor has already been processed this session
+                # if temp_col_name in self.cleaned_anomaly_columns or temp_col_name in self.ignored_anomaly_columns:
+                #   continue
+
                 try:
-                    #reads the csv files, only the Date time and temperature column, and saves it into a dataframe
+                    # reads the csv files, only the selected columns, and saves it into a dataframe
+                    cols = [index_col] + data_col
                     single_df = pd.read_csv(
-                        file,encoding = 'utf-8',
-                        usecols=['Date-Time (EST)', 'Temperature   (°C)']
-                        )
-                    
+                        file, encoding='utf-8',
+                        usecols=cols
+                    )
                 except ValueError as e:
                     print(f"Missing required columns in {file}: {e}")
                     continue
 
-                #Validate data content
+                # Validate data content
                 if single_df.empty:
                     print(f"No data in {file}")
                     continue
-                
-                #formats the date time column so that it is readable by matplotlib
-                single_df["Date-Time (EST)"] = pd.to_datetime(single_df["Date-Time (EST)"], 
-                                                             format="%m/%d/%Y %H:%M:%S", errors="coerce")
-                # Drop rows with invalid dates
-                single_df = single_df.dropna(subset=["Date-Time (EST)"])
 
-                #Set datetime as index
-                single_df = single_df.set_index("Date-Time (EST)")
+                try:
+                    # formats the date time column so that it is readable by matplotlib
+                    single_df[index_col] = pd.to_datetime(single_df[index_col],
+                                                          errors="coerce")
+                    # Drop rows with invalid dates
+                    single_df = single_df.dropna(subset=[index_col])
+                except Exception as e:
+                    print(f"Can't convert {index_col} to datetime: {e}")
+                    continue
 
-                # Calculate time differences to detect sampling rate
-                time_diffs = single_df.index.to_series().diff()
+                # Set index
+                single_df = single_df.set_index(index_col)
 
-                if not time_diffs.empty:
-                    # Get the most common time difference (mode) to determine sampling rate
-                    sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
-                    print(f"Detected sampling interval: {sampling_interval}")
-                else:
-                    print("Warning: Could not determine sampling interval for input data")
-                    
-                #Resample to consistent interval (e.g. 2 minutes)
-                single_df = single_df.resample(sampling_interval).mean().interpolate(method='linear')   
-                        
-                # Rename temperature column to include sensor name
-                single_df = single_df.rename(
-                    columns={'Temperature   (°C)': temp_col_name}
-                    )
-                
-                 # Detect anomalies
-                anomaly_info = self.detectAnomalies(single_df[temp_col_name])
+                # Save rename choices
+                rename_dict = {}
+                for col in data_col:
+                    if col in rename:
+                        new_name = f"{rename[col]}_{sensor_name}"
+                    else:
+                        new_name = f"{col}_{sensor_name}"
+                    rename_dict[col] = new_name
 
-                # Store initial state
-                self.sensor_states[temp_col_name] = {
-                    'status': 'raw',
-                    'original_data': single_df[[temp_col_name]].copy(),
-                    'processed_data': single_df[[temp_col_name]].copy(),
-                    'anomalies': anomaly_info['values'],
-                    'bounds': {  
-                        'lower': anomaly_info['global_lower_bound'],
-                        'upper': anomaly_info['global_upper_bound']
-                    }
+                single_df = single_df.rename(columns=rename_dict)
+                # if the index is datetime
+                if isinstance(single_df.index, pd.DatetimeIndex):
+                    # Calculate time differences to detect sampling rate
+                    time_diffs = single_df.index.to_series().diff()
+                    sampling_interval = '2min'
+
+                    if not time_diffs.empty:
+                        # Get the most common time difference (mode) to determine sampling rate
+                        sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
+                        print(f"Detected sampling interval: {sampling_interval}")
+                    else:
+                        print("Warning: Could not determine sampling interval for input data")
+
+                    # Resample to consistent interval (e.g. 2 minutes)
+                    single_df = single_df.resample(sampling_interval).mean().interpolate(method='linear')
+
+                # Process each column for anomalies and store in sensor states
+                for col in single_df.columns:
+                    # Skip if this column has already been processed this session
+                    if col in self.cleaned_anomaly_columns or col in self.ignored_anomaly_columns:
+                        continue
+                try:
+                    # Detect anomalies
+                    anomaly_info = self.detectAnomalies(single_df[col])
+
+                 # Store initial state
+                    self.sensor_states[col] = {
+                        'status': 'raw',
+                        'original_data': single_df[[col]].copy(),
+                        'processed_data': single_df[[col]].copy(),
+                        'anomalies': anomaly_info['values'],
+                        'bounds': {
+                            'lower': anomaly_info['global_lower_bound'],
+                            'upper': anomaly_info['global_upper_bound']
+                        }
+
                 }
+                except Exception as e:
+                    print(f"Warning: Error detecting anomalies the following columns: {col}: {str(e)}")
+                    traceback.print_exc()
+                    # Continue processing other columns
+                    continue
 
             except Exception as e:
                 print(f"Error processing {file}: {str(e)}")
@@ -911,6 +1069,7 @@ class Ui_MainWindow(object):
             self.df = self.df.sort_index().dropna(axis=0)
             
             # Update time range controls
+
             self.startTimeEdit.blockSignals(True)
             self.endTimeEdit.blockSignals(True)
             self.startTimeEdit.setDateTime(QtCore.QDateTime(self.df.index.min()))
