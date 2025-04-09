@@ -14,6 +14,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
 import matplotlib
 import matplotlib.pyplot as plt
+import mplcursors
 matplotlib.use('Qt5Agg')
 from PyQt5.QtWidgets import QFileDialog, QDateTimeEdit, QDockWidget, QTabWidget, QTextEdit
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
@@ -273,6 +274,8 @@ class Ui_MainWindow(object):
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
 
+        self.cursors = []  # To keep track of cursor objects
+
         self.sensor_states = {} #Key: sensor name, Value: dict of state/data
 
         #Create a dock widget for statistics
@@ -495,7 +498,7 @@ class Ui_MainWindow(object):
                 
                 # Rebuild main dataframe after any changes
                 dfs = []
-                for sensor_name, state in self.sensor_states.items():
+                for sensor_col, state in self.sensor_states.items():
                     dfs.append(state['processed_data'])
                 
                 self.df = pd.concat(dfs, axis=1) if dfs else pd.DataFrame()
@@ -531,10 +534,13 @@ class Ui_MainWindow(object):
                 filtered_df = self.df[(self.df.index >= startTime) & (self.df.index <= endTime)]
                 
                 if plotType == "Line Graph":
+                
                     #First plot all clean_data points regardless of anomaly status
                     for c in filtered_df.columns:
                         if not filtered_df[c].empty:
-                            self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
+                            lines = self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
+                            mplcursors.cursor(lines)  # or just mplcursors.cursor()
+
 
                     # Modified anomaly plotting:
                     for sensor_col, state in self.sensor_states.items():
@@ -555,7 +561,7 @@ class Ui_MainWindow(object):
                                         )
                                 except Exception as e:
                                     print(f"Error plotting outliers: {e}")
-
+                   
                     # Configure plot with larger fonts
                     plt.rcParams.update({'font.size': 10})  # Set base font size
 
@@ -622,7 +628,9 @@ class Ui_MainWindow(object):
                         for i, col in enumerate(agg_df.columns):
                             # Calculate position for this set of bars
                             pos = dates_num + (i * width)
-                            self.canv.axes.bar(pos, agg_df[col], width=width, label=col)
+                            bar = self.canv.axes.bar(pos, agg_df[col], width=width, label=col)
+                            mplcursors.cursor(bar) 
+
                         
                         # Configure plot
                         self.canv.axes.set_xlabel('Time Period')
@@ -653,7 +661,9 @@ class Ui_MainWindow(object):
                         
                         # Only create histogram if we have clean_data
                         if len(clean_data) > 0:
-                            self.canv.axes.hist(clean_data, bins=bins, alpha=0.7, label=col)
+                            self.canv.axes.hist(clean_data, bins, alpha=0.7, label=col)
+                            #mplcursors.cursor(hist)
+
                     
                     # Configure plot
                     self.canv.axes.set_xlabel('Temperature (°C)')
@@ -678,6 +688,7 @@ class Ui_MainWindow(object):
                     if clean_data:
                         self.canv.axes.boxplot(clean_data, labels=labels, patch_artist=True)
                         
+
                         # Configure plot
                         self.canv.axes.set_xlabel('Sensor')
                         self.canv.axes.set_ylabel('Temperature (°C)')
@@ -867,7 +878,6 @@ class Ui_MainWindow(object):
                 if not time_diffs.empty:
                     # Get the most common time difference (mode) to determine sampling rate
                     sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
-                    print(f"Detected sampling interval: {sampling_interval}")
                 else:
                     print("Warning: Could not determine sampling interval for input data")
                     
