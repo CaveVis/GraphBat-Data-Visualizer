@@ -592,7 +592,7 @@ class Ui_MainWindow(object):
                 
                 # Rebuild main dataframe after any changes
                 dfs = []
-                for sensor_name, state in self.sensor_states.items():
+                for sensor_col, state in self.sensor_states.items():
                     dfs.append(state['processed_data'])
                 
                 self.df = pd.concat(dfs, axis=1) if dfs else pd.DataFrame()
@@ -628,11 +628,14 @@ class Ui_MainWindow(object):
                 filtered_df = self.df[(self.df.index >= startTime) & (self.df.index <= endTime)]
                 
                 if plotType == "Line Graph":
+                
                     #First plot all clean_data points regardless of anomaly status
                     for c in filtered_df.columns:
                         if not filtered_df[c].empty:
-                            line = self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
-                            mplcursors.cursor(line)
+                            lines = self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
+                            mplcursors.cursor(lines)  # or just mplcursors.cursor()
+
+
                     # Modified anomaly plotting:
                     for sensor_col, state in self.sensor_states.items():
                         if state['status'] == 'viewed' and not state['anomalies'].empty:
@@ -652,7 +655,7 @@ class Ui_MainWindow(object):
                                         )
                                 except Exception as e:
                                     print(f"Error plotting outliers: {e}")
-
+                   
                     # Configure plot with larger fonts
                     plt.rcParams.update({'font.size': 10})  # Set base font size
 
@@ -720,7 +723,8 @@ class Ui_MainWindow(object):
                             # Calculate position for this set of bars
                             pos = dates_num + (i * width)
                             bar = self.canv.axes.bar(pos, agg_df[col], width=width, label=col)
-                            mplcursors.cursor(bar)
+                            mplcursors.cursor(bar) 
+
                         
                         # Configure plot
                         self.canv.axes.set_xlabel('Time Period')
@@ -751,7 +755,9 @@ class Ui_MainWindow(object):
                         
                         # Only create histogram if we have clean_data
                         if len(clean_data) > 0:
-                            self.canv.axes.hist(clean_data, bins=bins, alpha=0.7, label=col)
+                            self.canv.axes.hist(clean_data, bins, alpha=0.7, label=col)
+                            #mplcursors.cursor(hist)
+
                     
                     # Configure plot
                     self.canv.axes.set_xlabel('Temperature (°C)')
@@ -776,6 +782,7 @@ class Ui_MainWindow(object):
                     if clean_data:
                         self.canv.axes.boxplot(clean_data, labels=labels, patch_artist=True)
                         
+
                         # Configure plot
                         self.canv.axes.set_xlabel('Sensor')
                         self.canv.axes.set_ylabel('Temperature (°C)')
@@ -952,6 +959,7 @@ class Ui_MainWindow(object):
         """
 
         #First pass: Read and preprocess all files
+        merged_dfs = []
         for file in self.filenames:
             try:
                 # Get column selections for this file
@@ -1003,7 +1011,7 @@ class Ui_MainWindow(object):
                 rename_dict = {}
                 for col in data_col:
                     if col in rename:
-                        new_name = f"{rename[col]}_{sensor_name}"
+                        new_name = f"{renames[col]}_{sensor_name}"
                     else:
                         new_name = f"{col}_{sensor_name}"
                     rename_dict[col] = new_name
@@ -1051,6 +1059,7 @@ class Ui_MainWindow(object):
                     traceback.print_exc()
                     # Continue processing other columns
                     continue
+                merged_dfs.append(single_df)
 
             except Exception as e:
                 print(f"Error processing {file}: {str(e)}")
