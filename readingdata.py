@@ -472,7 +472,7 @@ class Ui_MainWindow(object):
                             if outlier_indices:  # Only proceed if we have valid indices
                                 self.df.loc[outlier_indices, sensor_col] = None
                                 #Interpolate only the NaN values just created
-                                self.df[sensor_col] = self.df[sensor_col].interpolate(method='linear')
+                                self.df[sensor_col] = self.df[sensor_col].interpolate(method='pad').interpolate(method='bfill')
                                  #Mark as cleaned
                                 self.cleaned_anomaly_columns.add(sensor_col)
                             
@@ -480,6 +480,11 @@ class Ui_MainWindow(object):
                             self.ignored_anomaly_columns.add(sensor_col)  #Add sensor to the ignored sensors set 
                         elif dialog.result == "view":
                             sensors_to_show_anomalies.add(sensor_col)
+
+                #Write merged df as CSV to folder 'datafiles'
+                os.makedirs('datafiles', exist_ok=True)  # Ensures the folder exists
+                file_path = os.path.join('datafiles', 'alteredDF.csv')  # Creates proper path
+                self.df.to_csv(file_path)  # Saves the file to the specified path
 
                 #Update statistics
                 self.updateStatistics()
@@ -538,8 +543,8 @@ class Ui_MainWindow(object):
                     # Rotate and adjust x-axis labels with larger font
                     plt.setp(self.canv.axes.get_xticklabels(), rotation=45, ha='right', fontsize=10)
                     plt.setp(self.canv.axes.get_yticklabels(), fontsize=10)
-                    #legend = self.canv.axes.legend()
-                    #legend.set_draggable(True)
+                    legend = self.canv.axes.legend()
+                    legend.set_draggable(True)
                     self.canv.axes.set_xlabel('Date-Time', fontsize=18)
                     self.canv.axes.set_ylabel('Measured Temperature(°C)', fontsize=18)
                     self.canv.axes.set_title('Temperature in Cave Over Time', fontsize=22, pad=20)
@@ -801,6 +806,7 @@ class Ui_MainWindow(object):
         """
         #Keep track of anomalies, dont reset when adding new sensors
         existing_anomaly_data = self.anomaly_data_by_column if hasattr(self, 'anomaly_data_by_column') else {}
+        print(f"Existing anomaly data: {existing_anomaly_data}")
         merged_dfs = []
 
         #First pass: Read and preprocess all files
@@ -850,19 +856,20 @@ class Ui_MainWindow(object):
                     temp_col_name not in self.cleaned_anomaly_columns and 
                     temp_col_name not in self.ignored_anomaly_columns):
                     anomaly_info = self.detectAnomalies(single_df[temp_col_name])
+                    print(f"Anomaly info datatype: {type(anomaly_info)}")
                     if anomaly_info["count"] > 0:
                         existing_anomaly_data[temp_col_name] = anomaly_info
 
                 # Append to list for merging
                 merged_dfs.append(single_df)
 
+                #Save the updated anomaly data
+                self.anomaly_data_by_column = existing_anomaly_data
+
             except Exception as e:
                 print(f"Error processing {file}: {str(e)}")
                 traceback.print_exc()
                 continue
-
-            #Save the updated anomaly data
-            self.anomaly_data_by_column = existing_anomaly_data
 
         if merged_dfs:
             #Merge dataframes, if only one dataframe then return it by itself
@@ -873,6 +880,11 @@ class Ui_MainWindow(object):
             
             #Drop rows that have any missing values for calculation reasons
             self.df = self.df.dropna(axis=0)
+
+            #Write merged df as CSV to folder 'datafiles'
+            os.makedirs('datafiles', exist_ok=True)  # Ensures the folder exists
+            file_path = os.path.join('datafiles', 'originalDF.csv')  # Creates proper path
+            self.df.to_csv(file_path)  # Saves the file to the specified path
 
             # Update time range controls
             self.startTimeEdit.blockSignals(True)
