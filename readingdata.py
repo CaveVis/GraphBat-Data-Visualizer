@@ -806,7 +806,6 @@ class Ui_MainWindow(object):
         """
         #Keep track of anomalies, dont reset when adding new sensors
         existing_anomaly_data = self.anomaly_data_by_column if hasattr(self, 'anomaly_data_by_column') else {}
-        print(f"Existing anomaly data: {existing_anomaly_data}")
         merged_dfs = []
 
         #First pass: Read and preprocess all files
@@ -816,8 +815,8 @@ class Ui_MainWindow(object):
                 temp_col_name = f"Temperature_{sensor_name}"
 
                 # Skip if this sensor has already been processed this session
-                if temp_col_name in self.cleaned_anomaly_columns or temp_col_name in self.ignored_anomaly_columns:
-                    continue
+                #if temp_col_name in self.cleaned_anomaly_columns or temp_col_name in self.ignored_anomaly_columns:
+                 #   continue
 
                 try:
                     #reads the csv files, only the Date time and temperature column, and saves it into a dataframe
@@ -829,7 +828,7 @@ class Ui_MainWindow(object):
                     print(f"Missing required columns in {file}: {e}")
                     continue
 
-                #Validate data
+                #Validate data content
                 if single_df.empty:
                     print(f"No data in {file}")
                     continue
@@ -839,24 +838,33 @@ class Ui_MainWindow(object):
                                                              format="%m/%d/%Y %H:%M:%S", errors="coerce")
                 # Drop rows with invalid dates
                 single_df = single_df.dropna(subset=["Date-Time (EST)"])
-                
+
+                #Set datetime as index
+                single_df = single_df.set_index("Date-Time (EST)")
+
+                # Calculate time differences to detect sampling rate
+                time_diffs = single_df.index.to_series().diff()
+
+                if not time_diffs.empty:
+                    # Get the most common time difference (mode) to determine sampling rate
+                    sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
+                    print(f"Detected sampling interval: {sampling_interval}")
+                else:
+                    print("Warning: Could not determine sampling interval for input data")
+                    
+                #Resample to consistent interval (e.g. 2 minutes)
+                single_df = single_df.resample(sampling_interval).mean().interpolate(method='linear')   
+                        
                 # Rename temperature column to include sensor name
                 single_df = single_df.rename(
                     columns={'Temperature   (°C)': temp_col_name}
                     )
                 
-                #Set datetime as index
-                single_df = single_df.set_index("Date-Time (EST)")
-
-                #Resample to every two minutes for consistency
-                single_df = single_df.resample('2min').mean().interpolate(method='linear')
-                
                 #Only detect anomalies if not already cleaned
                 if (temp_col_name not in existing_anomaly_data and 
-                    temp_col_name not in self.cleaned_anomaly_columns and 
+                    temp_col_name not in self.cleaned_anomaly_columns and
                     temp_col_name not in self.ignored_anomaly_columns):
                     anomaly_info = self.detectAnomalies(single_df[temp_col_name])
-                    print(f"Anomaly info datatype: {type(anomaly_info)}")
                     if anomaly_info["count"] > 0:
                         existing_anomaly_data[temp_col_name] = anomaly_info
 
