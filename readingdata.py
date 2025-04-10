@@ -1011,7 +1011,7 @@ class Ui_MainWindow(object):
                 rename_dict = {}
                 for col in data_col:
                     if col in rename:
-                        new_name = f"{renames[col]}_{sensor_name}"
+                        new_name = f"{rename[col]}_{sensor_name}"
                     else:
                         new_name = f"{col}_{sensor_name}"
                     rename_dict[col] = new_name
