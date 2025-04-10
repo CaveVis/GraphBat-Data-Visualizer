@@ -364,7 +364,7 @@ class Ui_MainWindow(object):
         self.df = pd.DataFrame()
         self.toolbar = Navi(self.canv,self.centralwidget)
         self.horizontalLayout.addWidget(self.toolbar)
-        self.column_selection = {}
+        self.c_column_selection = {}
         self.rename_dict = {}
         self.cleaned_anomaly_columns = set()
         self.ignored_anomaly_columns = set()
@@ -911,34 +911,40 @@ class Ui_MainWindow(object):
         if files:
             self.filenames = files
             print("Files :", self.filenames)
-            #Place to store column selction
-            self.column_selection = {}
 
-            for file in files:
-                try:
-                    sample_df =pd.read_csv(file, nrows=0, encoding='utf-8')
-                    column = sample_df.columns.tolist()
-
-                    #Dialog box shows up to select columns
-                    dial = ColumnSelectionDialog(column)
-                    if dial.exec_() == QtWidgets.QDialog.Accepted:
-                        self.column_selection[file] = {
-                            'index': dial.selected_index,
-                            'data': dial.selected_data,
-                            'renames': dial.column_rename
-                        }
-                    else:
-                        # If a user cancels selection, remove that file
-                        self.filenames.remove(file)
-                #if there is am error reading in the columns, remove if from the list
-                except Exception as e:
-                    print(f"Error reading columns from {file}: {e}")
-                    self.filenames.remove(file)
-            #Once the files are read in and the columns are selected, they put through readData
-            if self.filenames:
-                self.readData()
-            else:
+            #if not files are selected
+            if not self.filenames:
                 print("No valid files selected.")
+                return
+
+
+            try:
+                #Only asks for columns on first file and used for all files
+                f_file = self.filenames[0]
+                sample_df =pd.read_csv(f_file, nrows=0, encoding='utf-8')
+                column = sample_df.columns.tolist()
+
+                #Dialog box shows up to select columns once
+                dial = ColumnSelectionDialog(column)
+                if dial.exec_() == QtWidgets.QDialog.Accepted:
+                    if not hasattr(self, 'c_column_selection'):
+                        self.c_column_selection = {}
+
+                    self.c_column_selection = {
+                        'index': dial.selected_index,
+                        'data': dial.selected_data,
+                        'renames': dial.column_rename
+                    }
+
+                    self.readData()
+                else:
+                    # If a user cancels selection, remove that file
+                    print("Column selection cancelled.")
+
+            except Exception as e:
+                print(f"Error reading columns from {f_file}: {e}")
+                traceback.print_exc()
+
         else:
             print("No files selected.")
 
@@ -958,29 +964,21 @@ class Ui_MainWindow(object):
         
         """
 
+        if not hasattr(self, 'c_column_selection') or not self.c_column_selection:
+            print("No columns selected. Please select columns")
+            return
+        index_col = self.c_column_selection['index']
+        data_cols = self.c_column_selection['data']
+        renames = self.c_column_selection.get('renames', {})
+
         #First pass: Read and preprocess all files
         merged_dfs = []
         for file in self.filenames:
             try:
-                # Get column selections for this file
-                if file not in self.column_selection:
-                    print(f"No column selections for {file}, skipping file")
-                    continue
-
-                select = self.column_selection[file]
-                index_col = select['index']
-                data_col = select['data']
-                rename = select['renames']
-
                 sensor_name = os.path.basename(file).split('.')[0]
-
-                # Skip if this sensor has already been processed this session
-                # if temp_col_name in self.cleaned_anomaly_columns or temp_col_name in self.ignored_anomaly_columns:
-                #   continue
-
                 try:
-                    # reads the csv files, only the selected columns, and saves it into a dataframe
-                    cols = [index_col] + data_col
+                    # reads the csv files and only the columns the user selected and puts it into a dataframe
+                    cols = [index_col] + data_cols
                     single_df = pd.read_csv(
                         file, encoding='utf-8',
                         usecols=cols
@@ -993,6 +991,7 @@ class Ui_MainWindow(object):
                 if single_df.empty:
                     print(f"No data in {file}")
                     continue
+
 
                 try:
                     # formats the date time column so that it is readable by matplotlib
@@ -1009,9 +1008,9 @@ class Ui_MainWindow(object):
 
                 # Save rename choices
                 rename_dict = {}
-                for col in data_col:
-                    if col in rename:
-                        new_name = f"{rename[col]}_{sensor_name}"
+                for col in data_cols:
+                    if col in renames:
+                        new_name = f"{renames[col]}_{sensor_name}"
                     else:
                         new_name = f"{col}_{sensor_name}"
                     rename_dict[col] = new_name
@@ -1025,7 +1024,7 @@ class Ui_MainWindow(object):
 
                     if not time_diffs.empty:
                         # Get the most common time difference (mode) to determine sampling rate
-                        sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
+                        sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(minutes=2)
                         print(f"Detected sampling interval: {sampling_interval}")
                     else:
                         print("Warning: Could not determine sampling interval for input data")
