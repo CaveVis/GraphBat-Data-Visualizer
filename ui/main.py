@@ -221,6 +221,18 @@ class MainWindow(QMainWindow):
 
         #########################
 
+        #########################
+        ### Project toolbar graph buttons
+        #Only implemented for bar graph buttons for now
+        self.ui.pushButton_10.clicked.connect(lambda: self.set_agg_method("mean"))
+        self.ui.pushButton_20.clicked.connect(lambda: self.set_agg_method("median"))
+        self.ui.pushButton_8.clicked.connect(lambda: self.set_agg_method("min"))
+        self.ui.pushButton_18.clicked.connect(lambda: self.set_agg_method("max"))
+        self.ui.pushButton_16.clicked.connect(lambda: self.set_agg_method("sum"))
+        self.ui.pushButton_9.clicked.connect(lambda: self.set_agg_method("count"))
+
+        ##########################
+
         #### Load project page buttons
         self.ui.load_back_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
 
@@ -244,6 +256,10 @@ class MainWindow(QMainWindow):
         self.ui.header.mouseMoveEvent = moveWindow
 
         self.show()
+
+    def set_agg_method(self, method):
+        self.agg_method = method
+        self.display_canvas_in_frame("Bar Graph")
 
     def display_canvas_in_frame(self, graph_type):
         plt.clf()
@@ -302,20 +318,21 @@ class MainWindow(QMainWindow):
                             freq = 'H'  # Hourly
                             freq_label = 'Hourly'
 
-                        agg_method = "min"
-                       
+                        if not hasattr(self, 'agg_method') or self.agg_method is None:
+                            self.agg_method = "mean" #Default aggregation method
+                        
                         # Apply aggregation based on selected method
-                        if agg_method == "mean":
+                        if self.agg_method == "mean":
                             agg_df = self.df.resample(freq).mean()
-                        elif agg_method == "median":
+                        elif self.agg_method == "median":
                             agg_df = self.df.resample(freq).median()
-                        elif agg_method == "min":
+                        elif self.agg_method == "min":
                             agg_df = self.df.resample(freq).min()
-                        elif agg_method == "max":
+                        elif self.agg_method == "max":
                             agg_df = self.df.resample(freq).max()
-                        elif agg_method == "sum":
+                        elif self.agg_method == "sum":
                             agg_df = self.df.resample(freq).sum()
-                        elif agg_method == "count":
+                        elif self.agg_method == "count":
                             agg_df = self.df.resample(freq).count()
                         else:
                             # Default to mean
@@ -334,8 +351,8 @@ class MainWindow(QMainWindow):
                             self.canv.axes.bar(pos, agg_df[col], width=width, label=col)    
                         # Configure plot
                         self.canv.axes.set_xlabel('Time Period')
-                        self.canv.axes.set_ylabel(f'{agg_method.capitalize()} Temperature (°C)')
-                        self.canv.axes.set_title(f'{freq_label} {agg_method.capitalize()} Temperature')
+                        self.canv.axes.set_ylabel(f'{self.agg_method.capitalize()} Temperature (°C)')
+                        self.canv.axes.set_title(f'{freq_label} {self.agg_method.capitalize()} Temperature')
                         
                         # Format x-axis as dates
                         self.canv.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
@@ -523,7 +540,6 @@ class MainWindow(QMainWindow):
             os.makedirs('datafiles', exist_ok=True)
             file_path = os.path.join('datafiles', 'originalDF.csv')
             self.df.to_csv(file_path)
-
 
     def detectAnomalies(self, data):
         """
