@@ -4,12 +4,23 @@ from PyQt5 import QtWidgets
 from PySide6.QtCore import Qt, QSettings
 from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
 from PySide6.QtGui import QIcon, QFont
-from PySide6.QtWidgets import QApplication, QMainWindow, QSizeGrip, QFileDialog
+from PySide6.QtWidgets import QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget
 from mainwindow import Ui_mainwindow
 import pandas as pd
+import matplotlib
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
+import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import os
 import traceback
 
+#Canvas class
+class MatplotlibCanvas(FigureCanvasQTAgg):
+    def __init__(self, parent=None,width=5, height = 5, dpi = 120):
+        f = Figure(figsize = (width,height),dpi = dpi)
+        self.axes= f.add_subplot(111)
+        super(MatplotlibCanvas,self).__init__(f)
+        f.tight_layout(pad=3)
 
 class ColumnSelectionDialog(QtWidgets.QDialog):
     def __init__(self, columns, parent=None):
@@ -107,6 +118,12 @@ class MainWindow(QMainWindow):
         self.ui = Ui_mainwindow()
         self.ui.setupUi(self)
 
+        ##############################
+        ### Set up session variables
+        ##############################
+        self.canv = MatplotlibCanvas(self)
+        self.sensor_states = {}
+
         ### Load existing user preferences ###
         self.app_settings = QSettings("GraphBat", "userPrefs")
         #Theme
@@ -188,13 +205,19 @@ class MainWindow(QMainWindow):
         #Cancel button
         self.ui.cancel_create_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
 
-        #Initialize data processor
-        #self.data_processor = DataProcessor()
-
-        self.ui.pushButton_5.clicked.connect(self.handleFileSelection)
+        self.ui.pushButton_5.clicked.connect(self.getFileCSV)
         self.ui.pushButton_6.clicked.connect(self.handleImageSelection)
         #Create button (demo code)
         self.ui.confirm_create_button.clicked.connect(lambda: self.createNewProject())
+
+        ########################
+        ### Project page buttons
+
+        self.ui.button_linegraph.clicked.connect(lambda: self.display_canvas_in_frame("Line Graph"))
+        self.ui.button_bargraph.clicked.connect(lambda: self.display_canvas_in_frame("Bar Graph"))
+        self.ui.button_histogram.clicked.connect(lambda: self.display_canvas_in_frame("Histogram"))
+        self.ui.button_boxplot.clicked.connect(lambda: self.display_canvas_in_frame("Box Plot"))
+        self.ui.button_cavemap.clicked.connect(lambda: self.display_canvas_in_frame("Cave Map"))
 
         #########################
 
@@ -222,6 +245,170 @@ class MainWindow(QMainWindow):
 
         self.show()
 
+    def display_canvas_in_frame(self, graph_type):
+        plt.clf()
+        # Clear previous widgets in the layout
+        while self.ui.verticalLayout_55.count():
+            child = self.ui.verticalLayout_55.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        # Create a new canvas and navigation toolbar
+        self.canv = MatplotlibCanvas(self, width=8, height=4, dpi=100)
+        toolbar = Navi(self.canv, self)  # Add navigation toolbar
+
+        #Clear the axes
+        self.canv.axes.cla()
+        
+        if not self.df.empty:
+            try:
+                if graph_type == "Line Graph":
+                    for c in self.df.columns:
+                        if not self.df[c].empty:
+                            self.canv.axes.plot(self.df.index, self.df[c], label = c)
+
+                    # Configure plot with larger fonts
+                    plt.rcParams.update({'font.size': 10})  # Set base font size
+                    self.canv.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
+                    self.canv.axes.xaxis.set_major_locator(matplotlib.dates.AutoDateLocator())
+                    # Rotate and adjust x-axis labels with larger font
+                    plt.setp(self.canv.axes.get_xticklabels(), rotation=45, ha='right', fontsize=10)
+                    plt.setp(self.canv.axes.get_yticklabels(), fontsize=10)
+                    legend = self.canv.axes.legend()
+                    legend.set_draggable(True)
+                    self.canv.axes.set_xlabel('Date-Time', fontsize=18)
+                    self.canv.axes.set_ylabel('Measured Temperature(°C)', fontsize=18)
+                    self.canv.axes.set_title('Temperature in Cave Over Time', fontsize=22, pad=20)
+                elif graph_type == "Bar Graph":
+                    try:
+                        # For bar graphs, resample the data to a suitable frequency
+                        # First ensure we have a proper datetime index
+                        if not isinstance(self.df.index, pd.DatetimeIndex):
+                            self.df.index = pd.to_datetime(self.df.index)
+
+                        # Determine appropriate frequency based on date range
+                        date_range = (self.df.index.max() - self.df.index.min()).total_seconds()
+                        
+                        if date_range > 60*60*24*30:  # More than a month
+                            freq = 'W'  # Weekly
+                            freq_label = 'Weekly'
+                        elif date_range > 60*60*24*7:  # More than a week
+                            freq = 'D'  # Daily
+                            freq_label = 'Daily'
+                        elif date_range > 60*60*24:  # More than a day
+                            freq = '6H'  # 6-hourly
+                            freq_label = '6-Hourly'
+                        else:
+                            freq = 'H'  # Hourly
+                            freq_label = 'Hourly'
+
+                        agg_method = "min"
+                       
+                        # Apply aggregation based on selected method
+                        if agg_method == "mean":
+                            agg_df = self.df.resample(freq).mean()
+                        elif agg_method == "median":
+                            agg_df = self.df.resample(freq).median()
+                        elif agg_method == "min":
+                            agg_df = self.df.resample(freq).min()
+                        elif agg_method == "max":
+                            agg_df = self.df.resample(freq).max()
+                        elif agg_method == "sum":
+                            agg_df = self.df.resample(freq).sum()
+                        elif agg_method == "count":
+                            agg_df = self.df.resample(freq).count()
+                        else:
+                            # Default to mean
+                            agg_df = self.df.resample(freq).mean()
+                        # Calculate bar width based on number of columns
+                        num_cols = len(agg_df.columns)
+                        width = 0.8 / num_cols if num_cols > 0 else 0.8
+                        
+                        # Convert datetime index to numerical values for plotting
+                        dates_num = matplotlib.dates.date2num(agg_df.index)
+                        
+                        # Plot each column as a separate bar series
+                        for i, col in enumerate(agg_df.columns):
+                            # Calculate position for this set of bars
+                            pos = dates_num + (i * width)
+                            self.canv.axes.bar(pos, agg_df[col], width=width, label=col)    
+                        # Configure plot
+                        self.canv.axes.set_xlabel('Time Period')
+                        self.canv.axes.set_ylabel(f'{agg_method.capitalize()} Temperature (°C)')
+                        self.canv.axes.set_title(f'{freq_label} {agg_method.capitalize()} Temperature')
+                        
+                        # Format x-axis as dates
+                        self.canv.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
+                        self.canv.axes.xaxis.set_major_locator(matplotlib.dates.AutoDateLocator())
+                        plt.setp(self.canv.axes.get_xticklabels(), rotation=45, ha='right')
+                        
+                        # Add legend
+                        if num_cols > 0:
+                            legend = self.canv.axes.legend()
+                            legend.set_draggable(True)
+                    except Exception as e:
+                        print(f"Error in bar graph plotting: {e}")
+                        raise
+
+                elif graph_type == "Histogram":
+                    try:
+                        # We'll create a histogram for each column with transparency
+                        bins = 20  # Number of bins
+                        
+                        for col in self.df.columns:
+                            # Remove NaN values for histogram
+                            clean_data = self.df[col].dropna()
+                            
+                            # Only create histogram if we have clean_data
+                            if len(clean_data) > 0:
+                                self.canv.axes.hist(clean_data, bins, alpha=0.7, label=col)
+                                #mplcursors.cursor(hist)
+
+                        # Configure plot
+                        self.canv.axes.set_xlabel('Temperature (°C)')
+                        self.canv.axes.set_ylabel('Frequency')
+                        self.canv.axes.set_title('Temperature Distribution')
+                        legend = self.canv.axes.legend()
+                        legend.set_draggable(True)
+                    except Exception as e:
+                        print(f"Error in histogram plotting: {e}")
+                        raise
+                elif graph_type == "Box Plot":
+                    try:
+                        # For box plots, we need to prepare the clean_data differently
+                        # We'll create a list of clean_data for each column
+                        clean_data = []
+                        labels = []
+                        for col in self.df.columns:
+                            # Only add column if it has non-NaN values
+                            if not self.df[col].isna().all():
+                                clean_data.append(self.df[col].dropna())
+                                labels.append(col)
+                        
+                        # Create box plot
+                        if clean_data:
+                            self.canv.axes.boxplot(clean_data, labels=labels, patch_artist=True)
+                            # Configure plot
+                            self.canv.axes.set_xlabel('Sensor')
+                            self.canv.axes.set_ylabel('Temperature (°C)')
+                            self.canv.axes.set_title('Temperature Distribution by Sensor')
+                            self.canv.axes.grid(True, linestyle='--', alpha=0.7)
+                            
+                    except Exception as e:
+                        print(f"Error in box plot plotting: {e}")
+                        raise
+
+                self.canv.draw()
+                self.canv.figure.tight_layout()
+            except Exception as e:
+                print("Plotting error:", e)
+                traceback.print_exc()
+
+        # Add both to the layout
+        #VerticalLayout 
+        self.ui.verticalLayout_55.addWidget(toolbar)
+        self.ui.verticalLayout_55.addWidget(self.canv)
+
     def handleImageSelection(self):
          #Will get file address of img file and read it
         file,_ = QFileDialog.getOpenFileName(filter = "Images (*.png *.xpm *.jpg)")
@@ -231,29 +418,15 @@ class MainWindow(QMainWindow):
         else:
             print("No files selected.")
 
-    def handleFileSelection(self):
-        files, _ = QFileDialog.getOpenFileNames(self, "Select CSV Files", "", "CSV Files (*.csv)")
-        if files:
-            self.ui.filenames = files
-            print("Files:", self.ui.filenames)
-            self.readFileCSV(files)
-
-    def readFileCSV(self, file_paths):
-        dfs = []
-        for file in file_paths:
-            try:
-                df = pd.read_csv(file)
-                if 'datetime' in df.columns:
-                    df['datetime'] = pd.to_datetime(df['datetime'])
-                    df.set_index('datetime', inplace=True)
-                dfs.append(df)
-            except Exception as e:
-                print(f"Error reading {file}: {e}")
-
-        if dfs:
-            self.df = pd.concat(dfs, axis=1)
-            self.df.sort_index(inplace=True)
-            print("DataFrame created successfully.")
+    def getFileCSV(self):
+         #Will get file address of csv file and read it
+         files,_ = QFileDialog.getOpenFileNames(filter="CSV Files (*.csv)")
+         if files:
+             self.filenames = files
+             print("Files :", self.filenames)
+             self.readData()
+         else:
+             print("No files selected.")
     
     def readData(self):
     
@@ -263,79 +436,72 @@ class MainWindow(QMainWindow):
         """
 
         #First pass: Read and preprocess all files
-        merged_dfs = []
         for file in self.filenames:
             try:
-                # Get column selections for this file
-                if file not in self.column_selection:
-                    print(f"No column selections for {file}, skipping file")
+                sensor_name = os.path.basename(file).split('.')[0]
+                temp_col_name = f"Temperature_{sensor_name}"
+
+                #Skip if already processed
+                if temp_col_name in self.sensor_states:
                     continue
 
-                select = self.column_selection[file]
-                index_col = select['index']
-                data_col = select['data']
-                rename = select['renames']
-
-                sensor_name = os.path.basename(file).split('.')[0]
-
-                # Skip if this sensor has already been processed this session
-                # if temp_col_name in self.cleaned_anomaly_columns or temp_col_name in self.ignored_anomaly_columns:
-                #   continue
-
                 try:
-                    # reads the csv files, only the selected columns, and saves it into a dataframe
-                    cols = [index_col] + data_col
+                    #reads the csv files, only the Date time and temperature column, and saves it into a dataframe
                     single_df = pd.read_csv(
-                        file, encoding='utf-8',
-                        usecols=cols
-                    )
+                        file,encoding = 'utf-8',
+                        usecols=['Date-Time (EST)', 'Temperature   (°C)']
+                        )
+                    
                 except ValueError as e:
                     print(f"Missing required columns in {file}: {e}")
                     continue
 
-                # Validate data content
+                #Validate data content
                 if single_df.empty:
                     print(f"No data in {file}")
                     continue
+                
+                #formats the date time column so that it is readable by matplotlib
+                single_df["Date-Time (EST)"] = pd.to_datetime(single_df["Date-Time (EST)"], 
+                                                             format="%m/%d/%Y %H:%M:%S", errors="coerce")
+                # Drop rows with invalid dates
+                single_df = single_df.dropna(subset=["Date-Time (EST)"])
 
-                try:
-                    # formats the date time column so that it is readable by matplotlib
-                    single_df[index_col] = pd.to_datetime(single_df[index_col],
-                                                          errors="coerce")
-                    # Drop rows with invalid dates
-                    single_df = single_df.dropna(subset=[index_col])
-                except Exception as e:
-                    print(f"Can't convert {index_col} to datetime: {e}")
-                    continue
+                #Set datetime as index
+                single_df = single_df.set_index("Date-Time (EST)")
 
-                # Set index
-                single_df = single_df.set_index(index_col)
+                # Calculate time differences to detect sampling rate
+                time_diffs = single_df.index.to_series().diff()
 
-                # Save rename choices
-                rename_dict = {}
-                for col in data_col:
-                    if col in rename:
-                        new_name = f"{rename[col]}_{sensor_name}"
-                    else:
-                        new_name = f"{col}_{sensor_name}"
-                    rename_dict[col] = new_name
-
-                single_df = single_df.rename(columns=rename_dict)
-                # if the index is datetime
-                if isinstance(single_df.index, pd.DatetimeIndex):
-                    # Calculate time differences to detect sampling rate
-                    time_diffs = single_df.index.to_series().diff()
-                    sampling_interval = '2min'
-
-                    if not time_diffs.empty:
-                        # Get the most common time difference (mode) to determine sampling rate
-                        sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
-                        print(f"Detected sampling interval: {sampling_interval}")
-                    else:
-                        print("Warning: Could not determine sampling interval for input data")
-
-                    # Resample to consistent interval (e.g. 2 minutes)
-                    single_df = single_df.resample(sampling_interval).mean().interpolate(method='linear')
+                if not time_diffs.empty:
+                    # Get the most common time difference (mode) to determine sampling rate
+                    sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
+                    print(f"Detected sampling interval: {sampling_interval}")
+                else:
+                    print("Warning: Could not determine sampling interval for input data")
+                    
+                #Resample to consistent interval (e.g. 2 minutes)
+                single_df = single_df.resample(sampling_interval).mean().interpolate(method='linear')   
+                        
+                # Rename temperature column to include sensor name
+                single_df = single_df.rename(
+                    columns={'Temperature   (°C)': temp_col_name}
+                    )
+                
+                # Detect anomalies
+                anomaly_info = self.detectAnomalies(single_df[temp_col_name])
+                print(anomaly_info)
+                # Store initial state
+                self.sensor_states[temp_col_name] = {
+                    'status': 'raw',
+                    'original_data': single_df[[temp_col_name]].copy(),
+                    'processed_data': single_df[[temp_col_name]].copy(),
+                    'anomalies': anomaly_info['values'],
+                    'bounds': {  
+                        'lower': anomaly_info['global_lower_bound'],
+                        'upper': anomaly_info['global_upper_bound']
+                    }
+                }
 
             except Exception as e:
                 print(f"Error processing {file}: {str(e)}")
@@ -353,15 +519,73 @@ class MainWindow(QMainWindow):
             self.df.index = pd.to_datetime(self.df.index)
             self.df = self.df.sort_index().dropna(axis=0)
             
-            
             # Write CSV
             os.makedirs('datafiles', exist_ok=True)
             file_path = os.path.join('datafiles', 'originalDF.csv')
             self.df.to_csv(file_path)
-            
-            self.updateStatistics()
-            self.update(self.themes[0])
+
+
+    def detectAnomalies(self, data):
+        """
+        Enhanced anomaly detection with better spike handling and duplicate management
+        """
+        clean_data = data.dropna()
+        sensor_name = clean_data.name.replace("Temperature_", "") if hasattr(clean_data, 'name') else "Unknown"
+
+        if clean_data.empty:
+            return {
+                "count": 0,
+                "values": pd.Series(dtype=float),
+                "global_lower_bound": None,
+                "global_upper_bound": None,
+                "total_points": 0,
+                "sensor_name": sensor_name
+            }
+
+        # Calculate quartiles and IQR
+        Q1 = clean_data.quantile(0.25, interpolation='midpoint')
+        Q3 = clean_data.quantile(0.75, interpolation='midpoint')
+        IQR = Q3 - Q1
+
+        # Identify IQR outliers
+        threshold = 1.5
+        lower_bound = Q1 - threshold * IQR
+        upper_bound = Q3 + threshold * IQR
+        iqr_outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
         
+        # Spike detection with adaptive threshold
+        diff = clean_data.diff().abs()
+        if not diff.empty:
+            # Dynamic spike threshold based on rolling window
+            rolling_std = diff.rolling(window=10, min_periods=1).std()
+            spike_threshold = 3 * rolling_std  # 3 standard deviations
+            spike_outliers = clean_data[diff > spike_threshold]
+            
+            # Combine outliers while preserving important cases
+            combined_outliers = pd.concat([iqr_outliers, spike_outliers])
+            
+            # Smart de-duplication - keep all if they're significant spikes
+            if not combined_outliers.empty:
+                # Only remove duplicates that aren't significant spikes
+                mask = (combined_outliers.index.duplicated(keep='first') & 
+                    (diff.loc[combined_outliers.index] < 2 * rolling_std.loc[combined_outliers.index]))
+                outliers = combined_outliers[~mask]
+            else:
+                outliers = combined_outliers
+        else:
+            outliers = iqr_outliers
+
+        return {
+            "count": len(outliers),
+            "values": outliers.sort_values(),
+            "global_lower_bound": lower_bound,
+            "global_upper_bound": upper_bound,
+            "total_points": len(clean_data),
+            "sensor_name": sensor_name,
+            "iqr_outliers": len(iqr_outliers),
+            "spike_outliers": len(outliers) - len(iqr_outliers)
+        }  
+    
     def setDyslexicFont(self, is_dyslexic):
         self.app_settings.setValue("is_dyslexic", is_dyslexic)
 
