@@ -1,10 +1,11 @@
 # This Python file uses the following encoding: utf-8
 import sys
-from PyQt5 import QtWidgets
+#from PyQt5 import QtWidgets
 from PySide6.QtCore import Qt, QSettings
-from PyQt5.QtWidgets import QMainWindow, QApplication, QFileDialog
 from PySide6.QtGui import QIcon, QFont
-from PySide6.QtWidgets import QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget
+from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget,
+                                QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem,
+                                QLineEdit, QPushButton, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem)
 from mainwindow import Ui_mainwindow
 import pandas as pd
 import matplotlib
@@ -13,7 +14,10 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import os
 import traceback
-
+import datetime
+import mplcursors
+import data_processor
+from data_processor import AnomalyDialog, ColumnSelectionDialog, DataProcessor
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None,width=5, height = 5, dpi = 120):
@@ -21,96 +25,6 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         self.axes= f.add_subplot(111)
         super(MatplotlibCanvas,self).__init__(f)
         f.tight_layout(pad=3)
-
-class ColumnSelectionDialog(QtWidgets.QDialog):
-    def __init__(self, columns, parent=None):
-        super(ColumnSelectionDialog, self).__init__(parent)
-        self.setWindowTitle("Select Columns To Read")
-        self.resize(400, 300)
-
-        self.layout = QtWidgets.QVBoxLayout(self)
-
-        # Test description directing user
-        self.description = QtWidgets.QLabel("Select an index column from you inputted CSV files and a data column:")
-        self.layout.addWidget(self.description)
-
-        # Selection of index columns
-        self.index_group = QtWidgets.QGroupBox("Index Column (column that will tie all columns together ex:date-time)")
-        self.index_layout = QtWidgets.QVBoxLayout(self.index_group)
-        self.index_combo = QtWidgets.QComboBox()
-        self.index_combo.addItems(columns)
-        self.index_layout.addWidget(self.index_combo)
-        self.layout.addWidget(self.index_group)
-
-        # Selection of data columns
-        self.data_group = QtWidgets.QGroupBox("Data Columns")
-        self.data_layout = QtWidgets.QVBoxLayout(self.data_group)
-
-        # Widget for adding spefic columns columns
-        self.data_list = QtWidgets.QListWidget()
-        self.data_list.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
-        for column in columns:
-            item = QtWidgets.QListWidgetItem(column)
-            self.data_list.addItem(item)
-        self.data_layout.addWidget(self.data_list)
-        self.layout.addWidget(self.data_group)
-
-        # Rename selected columns widgets
-        self.rename_group = QtWidgets.QGroupBox("Rename Selected Data Column (Optional)")
-        self.rename_layout = QtWidgets.QHBoxLayout(self.rename_group)
-        self.rename_label = QtWidgets.QLabel("New Name:")
-        self.rename_edit = QtWidgets.QLineEdit()
-        self.rename_button = QtWidgets.QPushButton("Set Name")
-        self.rename_layout.addWidget(self.rename_label)
-        self.rename_layout.addWidget(self.rename_edit)
-        self.rename_layout.addWidget(self.rename_button)
-        self.layout.addWidget(self.rename_group)
-
-        # Connect rename button
-        self.rename_button.clicked.connect(self.rename_selected)
-
-        # Buttons for column selection
-        self.button_box = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel
-        )
-        self.layout.addWidget(self.button_box)
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
-
-        # Initialize choices
-        self.selected_index = ""
-        self.selected_data = []
-        self.column_rename = {}
-    #Rename selected column
-    def rename_selected(self):
-        selected_item = self.data_list.selectedItems()
-        if selected_item and self.rename_edit.text().strip():
-            colum_n = selected_item[0].text()
-            new_name = self.rename_edit.text().strip()
-            self.column_rename[colum_n] = new_name
-
-            # Update show new names
-            selected_item[0].setText(f"{colum_n} → {new_name}")
-
-            # Clear the edit
-            self.rename_edit.clear()
-    #Takes in user selection from index and data
-    def accept(self):
-        self.selected_index = self.index_combo.currentText()
-        self.selected_data = [item.text().split(" → ")[0] for item in
-                              [self.data_list.item(i) for i in range(self.data_list.count())
-                               if self.data_list.item(i).isSelected()]]
-
-        # Error checking
-        if not self.selected_index:
-            QtWidgets.QMessageBox.warning(self, "Selection Error", "Please select an index column")
-            return
-
-        if not self.selected_data:
-            QtWidgets.QMessageBox.warning(self, "Selection Error", "Please select at least one data column")
-            return
-
-        super(ColumnSelectionDialog, self).accept()
 
 class MainWindow(QMainWindow):
     def __init__(self, /):
@@ -122,7 +36,11 @@ class MainWindow(QMainWindow):
         ### Set up session variables
         ##############################
         self.canv = MatplotlibCanvas(self)
+        self.df = pd.DataFrame()  # Initialize empty DataFrame
         self.sensor_states = {}
+
+        # Create DataProcessor instance
+        self.data_processor = data_processor.DataProcessor(parent=self)
 
         ### Load existing user preferences ###
         self.app_settings = QSettings("GraphBat", "userPrefs")
@@ -205,8 +123,8 @@ class MainWindow(QMainWindow):
         #Cancel button
         self.ui.cancel_create_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
 
-        self.ui.pushButton_5.clicked.connect(self.getFileCSV)
-        self.ui.pushButton_6.clicked.connect(self.handleImageSelection)
+        self.ui.pushButton_5.clicked.connect(self.data_processor.getFileCSV)
+        self.ui.pushButton_6.clicked.connect(self.data_processor.getFileImage)
         #Create button (demo code)
         self.ui.confirm_create_button.clicked.connect(lambda: self.createNewProject())
 
@@ -261,6 +179,9 @@ class MainWindow(QMainWindow):
         self.agg_method = method
         self.display_canvas_in_frame("Bar Graph")
 
+    def get_plot_data(self):
+        self.df, self.sensor_states = self.data_processor.readData()
+
     def display_canvas_in_frame(self, graph_type):
         plt.clf()
         # Clear previous widgets in the layout
@@ -273,15 +194,95 @@ class MainWindow(QMainWindow):
         self.canv = MatplotlibCanvas(self, width=8, height=4, dpi=100)
         toolbar = Navi(self.canv, self)  # Add navigation toolbar
 
+
+        # Check if DataFrame exists and isn't empty
+        if not hasattr(self, 'df') or self.df.empty:
+            self.get_plot_data()
+        
         #Clear the axes
         self.canv.axes.cla()
         
         if not self.df.empty:
             try:
+                # Process anomaly dialogs using sensor_states
+                for sensor_col in list(self.sensor_states.keys()):
+                    state = self.sensor_states[sensor_col]
+                    
+                    # Skip if already processed
+                    if state['status'] in ('cleaned', 'ignored', 'viewed'):
+                        continue
+                    
+                    # Only show dialog if we have anomalies
+                    if not state['anomalies'].empty:
+                        dialog = AnomalyDialog(self, {
+                            'sensor_name': sensor_col.replace("Temperature_", ""),
+                            'count': len(state['anomalies']),
+                            'values': state['anomalies'],
+                            'global_lower_bound': state['bounds']['lower'],
+                            'global_upper_bound': state['bounds']['upper'],
+                            'total_points': len(state['original_data'])
+                        })
+                        
+                        result = dialog.exec()
+
+                        if result == QDialog.Accepted:
+                            if dialog.result == "remove":
+                                # Create cleaned version
+                                cleaned_data = state['original_data'].copy()
+                                cleaned_data.loc[state['anomalies'].index] = None
+                                cleaned_data = cleaned_data.ffill().bfill()
+                                
+                                # Update state in sensor_states
+                                self.sensor_states[sensor_col].update({
+                                    'status': 'cleaned',
+                                    'processed_data': cleaned_data
+                                })
+                                
+                            elif dialog.result == "ignore":
+                                self.sensor_states[sensor_col]['status'] = 'ignored'
+                                
+                            elif dialog.result == "view":
+                                self.sensor_states[sensor_col]['status'] = 'viewed'
+                
+                # Rebuild main dataframe after any changes
+                dfs = []
+                for sensor_col, state in self.sensor_states.items():
+                    dfs.append(state['processed_data'])
+                
+                self.df = pd.concat(dfs, axis=1) if dfs else pd.DataFrame()
+                #Make sure that no rows exist without data
+                self.df = self.df.sort_index().dropna(axis=0)
+
+                #Write altered to CSV
+                os.makedirs('datafiles', exist_ok=True)
+                file_path = os.path.join('datafiles', 'alteredDF.csv')
+                self.df.to_csv(file_path)
+
                 if graph_type == "Line Graph":
+                    #First plot all clean_data points regardless of anomaly status
                     for c in self.df.columns:
                         if not self.df[c].empty:
-                            self.canv.axes.plot(self.df.index, self.df[c], label = c)
+                            lines = self.canv.axes.plot(self.df.index, self.df[c], label = c)
+                            mplcursors.cursor(lines)  # or just mplcursors.cursor()
+
+
+                    # Modified anomaly plotting:
+                    for sensor_col, state in self.sensor_states.items():
+                        if state['status'] == 'viewed' and not state['anomalies'].empty:
+                            outliers = self.sensor_states[sensor_col]['anomalies']
+                            if not outliers.empty:
+                                try:
+                                    if not outliers.empty:
+                                        self.canv.axes.scatter(
+                                            outliers.index, 
+                                            outliers.values, 
+                                            color='red', 
+                                            s=5, 
+                                            label=f"{sensor_col.replace('Temperature_', '')} outliers",
+                                            zorder=3
+                                        )
+                                except Exception as e:
+                                    print(f"Error plotting outliers: {e}")
 
                     # Configure plot with larger fonts
                     plt.rcParams.update({'font.size': 10})  # Set base font size
@@ -404,7 +405,7 @@ class MainWindow(QMainWindow):
                         
                         # Create box plot
                         if clean_data:
-                            self.canv.axes.boxplot(clean_data, labels=labels, patch_artist=True)
+                            self.canv.axes.boxplot(clean_data, tick_labels=labels, patch_artist=True)
                             # Configure plot
                             self.canv.axes.set_xlabel('Sensor')
                             self.canv.axes.set_ylabel('Temperature (°C)')
@@ -426,182 +427,6 @@ class MainWindow(QMainWindow):
         self.ui.verticalLayout_55.addWidget(toolbar)
         self.ui.verticalLayout_55.addWidget(self.canv)
 
-    def handleImageSelection(self):
-         #Will get file address of img file and read it
-        file,_ = QFileDialog.getOpenFileName(filter = "Images (*.png *.xpm *.jpg)")
-        if file:
-            self.imgfile = file
-            print("Files :", self.imgfile)
-        else:
-            print("No files selected.")
-
-    def getFileCSV(self):
-         #Will get file address of csv file and read it
-         files,_ = QFileDialog.getOpenFileNames(filter="CSV Files (*.csv)")
-         if files:
-             self.filenames = files
-             print("Files :", self.filenames)
-             self.readData()
-         else:
-             print("No files selected.")
-    
-    def readData(self):
-    
-        """
-        Takes csv file(s) and returns a dataframe with index as datetime and datatype as columns.
-        
-        """
-
-        #First pass: Read and preprocess all files
-        for file in self.filenames:
-            try:
-                sensor_name = os.path.basename(file).split('.')[0]
-                temp_col_name = f"Temperature_{sensor_name}"
-
-                #Skip if already processed
-                if temp_col_name in self.sensor_states:
-                    continue
-
-                try:
-                    #reads the csv files, only the Date time and temperature column, and saves it into a dataframe
-                    single_df = pd.read_csv(
-                        file,encoding = 'utf-8',
-                        usecols=['Date-Time (EST)', 'Temperature   (°C)']
-                        )
-                    
-                except ValueError as e:
-                    print(f"Missing required columns in {file}: {e}")
-                    continue
-
-                #Validate data content
-                if single_df.empty:
-                    print(f"No data in {file}")
-                    continue
-                
-                #formats the date time column so that it is readable by matplotlib
-                single_df["Date-Time (EST)"] = pd.to_datetime(single_df["Date-Time (EST)"], 
-                                                             format="%m/%d/%Y %H:%M:%S", errors="coerce")
-                # Drop rows with invalid dates
-                single_df = single_df.dropna(subset=["Date-Time (EST)"])
-
-                #Set datetime as index
-                single_df = single_df.set_index("Date-Time (EST)")
-
-                # Calculate time differences to detect sampling rate
-                time_diffs = single_df.index.to_series().diff()
-
-                if not time_diffs.empty:
-                    # Get the most common time difference (mode) to determine sampling rate
-                    sampling_interval = time_diffs.mode().iloc[0] if not time_diffs.empty else pd.Timedelta(0)
-                    print(f"Detected sampling interval: {sampling_interval}")
-                else:
-                    print("Warning: Could not determine sampling interval for input data")
-                    
-                #Resample to consistent interval (e.g. 2 minutes)
-                single_df = single_df.resample(sampling_interval).mean().interpolate(method='linear')   
-                        
-                # Rename temperature column to include sensor name
-                single_df = single_df.rename(
-                    columns={'Temperature   (°C)': temp_col_name}
-                    )
-                
-                # Detect anomalies
-                anomaly_info = self.detectAnomalies(single_df[temp_col_name])
-                print(anomaly_info)
-                # Store initial state
-                self.sensor_states[temp_col_name] = {
-                    'status': 'raw',
-                    'original_data': single_df[[temp_col_name]].copy(),
-                    'processed_data': single_df[[temp_col_name]].copy(),
-                    'anomalies': anomaly_info['values'],
-                    'bounds': {  
-                        'lower': anomaly_info['global_lower_bound'],
-                        'upper': anomaly_info['global_upper_bound']
-                    }
-                }
-
-            except Exception as e:
-                print(f"Error processing {file}: {str(e)}")
-                traceback.print_exc()
-                continue
-
-        # Build main dataframe from sensor states
-        dfs = []
-        for sensor, state in self.sensor_states.items():
-            dfs.append(state['processed_data'])
-        
-        self.df = pd.concat(dfs, axis=1) if dfs else pd.DataFrame()    
-
-        if not self.df.empty:
-            self.df.index = pd.to_datetime(self.df.index)
-            self.df = self.df.sort_index().dropna(axis=0)
-            
-            # Write CSV
-            os.makedirs('datafiles', exist_ok=True)
-            file_path = os.path.join('datafiles', 'originalDF.csv')
-            self.df.to_csv(file_path)
-
-    def detectAnomalies(self, data):
-        """
-        Enhanced anomaly detection with better spike handling and duplicate management
-        """
-        clean_data = data.dropna()
-        sensor_name = clean_data.name.replace("Temperature_", "") if hasattr(clean_data, 'name') else "Unknown"
-
-        if clean_data.empty:
-            return {
-                "count": 0,
-                "values": pd.Series(dtype=float),
-                "global_lower_bound": None,
-                "global_upper_bound": None,
-                "total_points": 0,
-                "sensor_name": sensor_name
-            }
-
-        # Calculate quartiles and IQR
-        Q1 = clean_data.quantile(0.25, interpolation='midpoint')
-        Q3 = clean_data.quantile(0.75, interpolation='midpoint')
-        IQR = Q3 - Q1
-
-        # Identify IQR outliers
-        threshold = 1.5
-        lower_bound = Q1 - threshold * IQR
-        upper_bound = Q3 + threshold * IQR
-        iqr_outliers = clean_data[(clean_data < lower_bound) | (clean_data > upper_bound)]
-        
-        # Spike detection with adaptive threshold
-        diff = clean_data.diff().abs()
-        if not diff.empty:
-            # Dynamic spike threshold based on rolling window
-            rolling_std = diff.rolling(window=10, min_periods=1).std()
-            spike_threshold = 3 * rolling_std  # 3 standard deviations
-            spike_outliers = clean_data[diff > spike_threshold]
-            
-            # Combine outliers while preserving important cases
-            combined_outliers = pd.concat([iqr_outliers, spike_outliers])
-            
-            # Smart de-duplication - keep all if they're significant spikes
-            if not combined_outliers.empty:
-                # Only remove duplicates that aren't significant spikes
-                mask = (combined_outliers.index.duplicated(keep='first') & 
-                    (diff.loc[combined_outliers.index] < 2 * rolling_std.loc[combined_outliers.index]))
-                outliers = combined_outliers[~mask]
-            else:
-                outliers = combined_outliers
-        else:
-            outliers = iqr_outliers
-
-        return {
-            "count": len(outliers),
-            "values": outliers.sort_values(),
-            "global_lower_bound": lower_bound,
-            "global_upper_bound": upper_bound,
-            "total_points": len(clean_data),
-            "sensor_name": sensor_name,
-            "iqr_outliers": len(iqr_outliers),
-            "spike_outliers": len(outliers) - len(iqr_outliers)
-        }  
-    
     def setDyslexicFont(self, is_dyslexic):
         self.app_settings.setValue("is_dyslexic", is_dyslexic)
 
@@ -670,8 +495,6 @@ class MainWindow(QMainWindow):
         except Exception as e:
             print(f"An error occurred: {e}")
             
-
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     widget = MainWindow()
