@@ -50,7 +50,7 @@ class MainWindow(QMainWindow):
         #Fullscreen mode
         is_fullscreen = self.app_settings.value("is_fullscreen", True)
         if is_fullscreen:
-            self.ui.maximize_button.clicked.connect(self.toggleMaximized())
+            self.ui.maximize_button.clicked.connect(lambda: self.toggleMaximized())
             self.ui.fullscreen_checkbox.setChecked(True)
         else:
             self.ui.fullscreen_checkbox.setChecked(False)
@@ -70,6 +70,8 @@ class MainWindow(QMainWindow):
 
         #Taskbar setup
         self.taskbar_width = 300
+        self.ui.project_taskbar_toolbox.setItemIcon(self.ui.project_taskbar_toolbox.currentIndex(), QIcon("images/icons/bat_flying.svg"))
+        self.ui.toolbox_graphlist.setItemIcon(self.ui.toolbox_graphlist.currentIndex(), QIcon("images/icons/bat_flying.svg"))
 
         #Hide default title bar
         self.setWindowFlags(Qt.FramelessWindowHint)
