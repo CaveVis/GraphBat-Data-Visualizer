@@ -57,11 +57,9 @@ class MainWindow(QMainWindow):
         #Font
         is_dyslexic = self.app_settings.value("is_dyslexic", False)
         if is_dyslexic:
-            print("read is dyslexic")
             QApplication.instance().setFont(QFont("Comic Sans MS"))
             self.ui.dyslexicfont_checkbox.setChecked(True)
         else:
-            print("read is not dyslexic")
             QApplication.instance().setFont(QFont("Verdana"))
             self.ui.dyslexicfont_checkbox.setChecked(False)
         print(f"User preferences are saved at {self.app_settings.fileName()}")
