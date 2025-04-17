@@ -19,6 +19,7 @@ import datetime
 import mplcursors
 import data_processor
 from data_processor import AnomalyDialog, ColumnSelectionDialog, DataProcessor
+
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None,width=5, height = 5, dpi = 120):
@@ -254,6 +255,8 @@ class MainWindow(QMainWindow):
                 #Make sure that no rows exist without data
                 self.df = self.df.sort_index().dropna(axis=0)
 
+                #Rename columns to Sensor 1, Sensor 2, etc.
+                self.df.columns = [f"Sensor {i+1}" for i in range(self.df.shape[1])]
                 #Write altered to CSV
                 os.makedirs('datafiles', exist_ok=True)
                 file_path = os.path.join('datafiles', 'alteredDF.csv')
@@ -406,13 +409,14 @@ class MainWindow(QMainWindow):
                         
                         # Create box plot
                         if clean_data:
-                            self.canv.axes.boxplot(clean_data, tick_labels=labels, patch_artist=True)
+                            self.canv.axes.boxplot(clean_data, tick_labels=labels, manage_ticks=True, patch_artist=True)
                             # Configure plot
-                            self.canv.axes.set_xlabel('Sensor')
+                            self.canv.axes.set_xlabel('Sensors')
                             self.canv.axes.set_ylabel('Temperature (°C)')
                             self.canv.axes.set_title('Temperature Distribution by Sensor')
                             self.canv.axes.grid(True, linestyle='--', alpha=0.7)
-                            
+                            # Rotate x-axis labels to prevent crowding
+                            plt.setp(self.canv.axes.get_xticklabels(), rotation=45, ha='right', rotation_mode='anchor')
                     except Exception as e:
                         print(f"Error in box plot plotting: {e}")
                         raise

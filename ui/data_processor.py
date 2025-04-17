@@ -339,6 +339,7 @@ class DataProcessor:
                     rename_dict[col] = new_name
 
                 single_df = single_df.rename(columns=rename_dict)
+                
                 # if the index is datetime
                 if isinstance(single_df.index, pd.DatetimeIndex):
                     # Calculate time differences to detect sampling rate
