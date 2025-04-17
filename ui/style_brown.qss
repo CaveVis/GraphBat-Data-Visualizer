@@ -143,4 +143,7 @@ QCheckBox
 color: #FFFFFF
 }
 
-
+QFrame
+{
+background: transparent;
+}

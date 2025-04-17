@@ -124,8 +124,8 @@ class MainWindow(QMainWindow):
         #Cancel button
         self.ui.cancel_create_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
 
-        self.ui.pushButton_5.clicked.connect(self.data_processor.getFileCSV)
-        self.ui.pushButton_6.clicked.connect(self.data_processor.getFileImage)
+        self.ui.create_add_data_button.clicked.connect(self.data_processor.getFileCSV)
+        self.ui.create_add_map_button.clicked.connect(self.data_processor.getFileImage)
         #Create button (demo code)
         self.ui.confirm_create_button.clicked.connect(lambda: self.createNewProject())
 
@@ -143,12 +143,12 @@ class MainWindow(QMainWindow):
         #########################
         ### Project toolbar graph buttons
         #Only implemented for bar graph buttons for now
-        self.ui.pushButton_10.clicked.connect(lambda: self.set_agg_method("mean"))
-        self.ui.pushButton_20.clicked.connect(lambda: self.set_agg_method("median"))
-        self.ui.pushButton_8.clicked.connect(lambda: self.set_agg_method("min"))
-        self.ui.pushButton_18.clicked.connect(lambda: self.set_agg_method("max"))
-        self.ui.pushButton_16.clicked.connect(lambda: self.set_agg_method("sum"))
-        self.ui.pushButton_9.clicked.connect(lambda: self.set_agg_method("count"))
+        #self.ui.pushButton_10.clicked.connect(lambda: self.set_agg_method("mean"))
+        #self.ui.pushButton_20.clicked.connect(lambda: self.set_agg_method("median"))
+        #self.ui.pushButton_8.clicked.connect(lambda: self.set_agg_method("min"))
+        #self.ui.pushButton_18.clicked.connect(lambda: self.set_agg_method("max"))
+        #self.ui.pushButton_16.clicked.connect(lambda: self.set_agg_method("sum"))
+        #self.ui.pushButton_9.clicked.connect(lambda: self.set_agg_method("count"))
 
         ##########################
 
