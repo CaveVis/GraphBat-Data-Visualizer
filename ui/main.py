@@ -17,8 +17,8 @@ import os
 import traceback
 import datetime
 import mplcursors
-import data_processor
-from data_processor import AnomalyDialog, ColumnSelectionDialog, DataProcessor
+import src.data_processing.data_processor as data_processor
+from src.data_processing.data_processor import AnomalyDialog, ColumnSelectionDialog, DataProcessor
 
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
