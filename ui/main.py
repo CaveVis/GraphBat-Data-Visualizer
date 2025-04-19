@@ -137,25 +137,12 @@ class MainWindow(QMainWindow):
         ### Project page buttons
 
         self.ui.button_linegraph.clicked.connect(lambda: self.display_canvas_in_frame("Line Graph"))
-        #self.ui.button_bargraph.clicked.connect(lambda: self.display_canvas_in_frame("Bar Graph"))
+        self.ui.dropdown_bargraph.currentTextChanged.connect(self.update_bar_agg_method)
         self.ui.button_histogram.clicked.connect(lambda: self.display_canvas_in_frame("Histogram"))
         self.ui.button_boxplot.clicked.connect(lambda: self.display_canvas_in_frame("Box Plot"))
         self.ui.button_cavemap.clicked.connect(lambda: self.display_canvas_in_frame("Cave Map"))
 
         #########################
-
-        #########################
-        ### Project toolbar graph buttons
-        #Only implemented for bar graph buttons for now
-        #self.ui.pushButton_10.clicked.connect(lambda: self.set_agg_method("mean"))
-        #self.ui.pushButton_20.clicked.connect(lambda: self.set_agg_method("median"))
-        #self.ui.pushButton_8.clicked.connect(lambda: self.set_agg_method("min"))
-        #self.ui.pushButton_18.clicked.connect(lambda: self.set_agg_method("max"))
-        #self.ui.pushButton_16.clicked.connect(lambda: self.set_agg_method("sum"))
-        #self.ui.pushButton_9.clicked.connect(lambda: self.set_agg_method("count"))
-
-        ##########################
-
         #### Load project page buttons
         self.ui.load_back_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
 
@@ -180,12 +167,27 @@ class MainWindow(QMainWindow):
 
         self.show()
 
-    def set_agg_method(self, method):
-        self.agg_method = method
-        self.display_canvas_in_frame("Bar Graph")
-
     def get_plot_data(self):
         self.df, self.sensor_states = self.data_processor.readData()
+
+    def update_bar_agg_method(self):
+        """Update aggregation method based on dropdown selection"""
+        text = self.ui.dropdown_bargraph.currentText()
+        print(text)
+        match text:
+            case "Bar Graph - Mean":
+                self.agg_method = "mean"
+            case "Bar Graph - Median":
+                self.agg_method = "median"
+            case "Bar Graph - Minimum":
+                self.agg_method = "min"
+            case "Bar Graph - Maximum":
+                self.agg_method = "max"
+            case "Bar Graph - Count":
+                self.agg_method = "count"
+            case _:  # Default case
+                self.agg_method = "mean"
+        self.display_canvas_in_frame("Bar Graph")  # Redraw the bar graph
 
     def display_canvas_in_frame(self, graph_type):
         plt.clf()
@@ -303,6 +305,7 @@ class MainWindow(QMainWindow):
                     self.canv.axes.set_xlabel('Date-Time', fontsize=18)
                     self.canv.axes.set_ylabel('Measured Temperature(°C)', fontsize=18)
                     self.canv.axes.set_title('Temperature in Cave Over Time', fontsize=22, pad=20)
+
                 elif graph_type == "Bar Graph":
                     try:
                         # For bar graphs, resample the data to a suitable frequency
@@ -332,7 +335,7 @@ class MainWindow(QMainWindow):
                         # Apply aggregation based on selected method
                         if self.agg_method == "mean":
                             agg_df = self.df.resample(freq).mean()
-                        elif self.agg_method == "median":
+                        elif self.agg_method == "Median":
                             agg_df = self.df.resample(freq).median()
                         elif self.agg_method == "min":
                             agg_df = self.df.resample(freq).min()
