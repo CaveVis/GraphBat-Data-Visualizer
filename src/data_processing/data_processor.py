@@ -1,4 +1,5 @@
 import os
+import shutil
 import datetime
 import pandas as pd
 import traceback
@@ -6,6 +7,8 @@ from PySide6.QtWidgets import QFileDialog
 from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget,
                                 QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem,
                                 QLineEdit, QPushButton, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem)
+
+from src.project_management.project_manager import ProjectManager
 
 class ColumnSelectionDialog(QDialog):
     def __init__(self, columns, parent=None):
@@ -241,8 +244,7 @@ class DataProcessor:
                         'data': dial.selected_data,
                         'renames': dial.column_rename
                     }
-
-                    self.readData()
+                    #self.readData()
                 else:
                     # If a user cancels selection, remove that file
                     print("Column selection cancelled.")
@@ -253,6 +255,8 @@ class DataProcessor:
 
         else:
             print("No files selected.")
+
+        return self.filenames
     
     def getFileImage(self):
          #Will get file address of img file and read it
@@ -262,23 +266,6 @@ class DataProcessor:
             print("Files :", self.imgfile)
         else:
             print("No files selected.")
-
-    
-        # Build main dataframe from sensor states
-        dfs = []
-        for sensor, state in self.sensor_states.items():
-            dfs.append(state['processed_data'])
-        
-        self.df = pd.concat(dfs, axis=1) if dfs else pd.DataFrame()    
-
-        if not self.df.empty:
-            self.df.index = pd.to_datetime(self.df.index)
-            self.df = self.df.sort_index().dropna(axis=0)
-            
-            # Write CSV
-            os.makedirs('datafiles', exist_ok=True)
-            file_path = os.path.join('datafiles', 'originalDF.csv')
-            self.df.to_csv(file_path)
 
     def readData(self):
     
@@ -290,9 +277,18 @@ class DataProcessor:
         if not hasattr(self, 'c_column_selection') or not self.c_column_selection:
             print("No columns selected. Please select columns")
             return
+        
         index_col = self.c_column_selection['index']
         data_cols = self.c_column_selection['data']
         renames = self.c_column_selection.get('renames', {})
+
+        project_name = ProjectManager.get_project()
+        base_data_dir = os.path.join("Projects", project_name, "datafiles")
+        premerge_data_dir = os.path.join(base_data_dir, "processed_data")
+        merged_data_dir = os.path.join(base_data_dir, "processed_data")
+        # Create directories if they don't exist
+        #os.makedirs(premerge_data_dir, exist_ok=True)
+        #os.makedirs(merged_data_dir, exist_ok=True)
 
         #First pass: Read and preprocess all files
         merged_dfs = []
@@ -314,7 +310,6 @@ class DataProcessor:
                 if single_df.empty:
                     print(f"No data in {file}")
                     continue
-
 
                 try:
                     # formats the date time column so that it is readable by matplotlib
@@ -356,6 +351,12 @@ class DataProcessor:
                     # Resample to consistent interval (e.g. 2 minutes)
                     single_df = single_df.resample(sampling_interval).mean().interpolate(method='linear')
 
+                # Save the preprocessed single file before merging
+                raw_filename = f"preprocessed_{sensor_name}.csv"
+                raw_filepath = os.path.join(premerge_data_dir, raw_filename)
+                single_df.to_csv(raw_filepath)
+                print(f"Saved preprocessed file: {raw_filepath}")
+
                 # Process each column for anomalies and store in sensor states
                 for col in single_df.columns:
                     try:
@@ -378,13 +379,14 @@ class DataProcessor:
                         traceback.print_exc()
                         # Continue processing other columns
                         continue
+
                 merged_dfs.append(single_df)
 
             except Exception as e:
                 print(f"Error processing {file}: {str(e)}")
                 traceback.print_exc()
                 continue
-
+        
         # Build main dataframe from sensor states
         dfs = []
         for sensor, state in self.sensor_states.items():
@@ -396,10 +398,11 @@ class DataProcessor:
             self.df.index = pd.to_datetime(self.df.index)
             self.df = self.df.sort_index().dropna(axis=0)
         
-            # Write CSV
-            os.makedirs('datafiles', exist_ok=True)
-            file_path = os.path.join('datafiles', 'originalDF.csv')
-            self.df.to_csv(file_path)
+            # Save the merged dataframe
+            merged_filename = "merged_data.csv"
+            merged_filepath = os.path.join(merged_data_dir, merged_filename)
+            self.df.to_csv(merged_filepath)
+            print(f"Saved merged data: {merged_filepath}")
 
         return self.df, self.sensor_states
 
