@@ -147,3 +147,26 @@ QFrame
 {
 background: transparent;
 }
+
+QComboBox
+{
+background-color: #493721;
+border: 1px solid #AD6300;
+border-radius: 3px;
+padding: 2px;
+color: #FFFFFF;
+}
+
+QComboBox QAbstractItemView
+{
+color: #FFFFFF;
+background-color: #493721;
+border: 1px solid #AD6300;
+border-radius: 3px;
+padding: 2px;
+}
+
+QComboBox:down-arrow
+{
+color: #AD6300;
+}

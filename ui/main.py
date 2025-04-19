@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
         ### Project page buttons
 
         self.ui.button_linegraph.clicked.connect(lambda: self.display_canvas_in_frame("Line Graph"))
-        self.ui.button_bargraph.clicked.connect(lambda: self.display_canvas_in_frame("Bar Graph"))
+        #self.ui.button_bargraph.clicked.connect(lambda: self.display_canvas_in_frame("Bar Graph"))
         self.ui.button_histogram.clicked.connect(lambda: self.display_canvas_in_frame("Histogram"))
         self.ui.button_boxplot.clicked.connect(lambda: self.display_canvas_in_frame("Box Plot"))
         self.ui.button_cavemap.clicked.connect(lambda: self.display_canvas_in_frame("Cave Map"))
