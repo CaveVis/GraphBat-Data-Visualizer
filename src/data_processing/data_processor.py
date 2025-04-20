@@ -266,13 +266,51 @@ class DataProcessor:
         else:
             print("No files selected.")
 
-    def readData(self):
+    def readData(self, project=None):
     
         """
         Takes csv file(s) and returns a dataframe with index as datetime and datatype as columns.
         
         """
-
+        if project:
+            # Project mode - load preprocessed data
+            project_name = project['project_name']
+            base_data_dir = os.path.join("Projects", project_name, "datafiles", "preprocessed_data")
+            merged_filepath = os.path.join(base_data_dir, "preprocessed_merged_data.csv")
+            
+            try:
+                # Load the merged dataframe
+                self.df = pd.read_csv(merged_filepath, index_col=0, parse_dates=True)
+                
+                # Reconstruct sensor_states from individual preprocessed files
+                self.sensor_states = {}
+                for file in os.listdir(base_data_dir):
+                    if file.startswith("preprocessed_") and file != "preprocessed_merged_data.csv":
+                        sensor_name = file.split('_')[1].split('.')[0]
+                        filepath = os.path.join(base_data_dir, file)
+                        single_df = pd.read_csv(filepath, index_col=0, parse_dates=True)
+                        
+                        for col in single_df.columns:
+                            # Recreate sensor state for each column
+                            anomaly_info = self.detectAnomalies(single_df[col])
+                            self.sensor_states[col] = {
+                                'status': 'raw',
+                                'original_data': single_df[[col]].copy(),
+                                'processed_data': single_df[[col]].copy(),
+                                'anomalies': anomaly_info['values'],
+                                'bounds': {
+                                    'lower': anomaly_info['global_lower_bound'],
+                                    'upper': anomaly_info['global_upper_bound']
+                                }
+                            }
+                return self.df, self.sensor_states 
+                     
+            except Exception as e:
+                print(f"Error loading preprocessed data: {str(e)}")
+                traceback.print_exc()
+                return None, None
+            
+        #Normal mode - no project, reading raw files
         if not hasattr(self, 'c_column_selection') or not self.c_column_selection:
             print("No columns selected. Please select columns")
             return

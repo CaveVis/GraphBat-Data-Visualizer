@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QIcon, QFont
 from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget,
                                 QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem,
-                                QLineEdit, QPushButton, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem)
+                                QLineEdit, QPushButton, QSizePolicy, QFrame, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem)
 from mainwindow import Ui_mainwindow
 import pandas as pd
 import matplotlib
@@ -44,6 +44,22 @@ class MainWindow(QMainWindow):
         self.canv = MatplotlibCanvas(self)
         self.df = pd.DataFrame()  # Initialize empty DataFrame
         self.sensor_states = {}
+
+        # Add these font definitions right after you initialize your UI
+        self.font = QFont()
+        self.font.setFamilies([u"Verdana"])
+        self.font.setPointSize(15)
+        self.font.setBold(True)
+
+        self.font2 = QFont()
+        self.font2.setFamilies([u"Verdana"])
+        self.font2.setPointSize(12)
+        self.font2.setBold(True)
+
+        self.font5 = QFont()
+        self.font5.setFamilies([u"Verdana"])
+        self.font5.setPointSize(11)
+        self.font5.setItalic(True)
 
         # Create DataProcessor instance
         self.data_processor = data_processor.DataProcessor(parent=self)
@@ -123,7 +139,9 @@ class MainWindow(QMainWindow):
         #Create button
         self.ui.create_button_main.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.create_project_page))
         #Load button
-        self.ui.load_button_main.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.load_page))
+        self.ui.load_button_main.clicked.connect(lambda: [self.ui.main_body_stack.setCurrentWidget(self.ui.load_page),
+                                                        self.load_projects_list()
+                                                        ])
 
         #### Create project page buttons #####################
         #Cancel button
@@ -131,7 +149,7 @@ class MainWindow(QMainWindow):
 
         self.ui.create_add_data_button.clicked.connect(self.data_processor.getFileCSV)
         self.ui.create_add_map_button.clicked.connect(self.data_processor.getFileImage)
-        #Create button (demo code)
+        #Create project button
         self.ui.confirm_create_button.clicked.connect(lambda: self.handle_project_creation())
 
         ########################
@@ -143,8 +161,19 @@ class MainWindow(QMainWindow):
         self.ui.button_boxplot.clicked.connect(lambda: self.display_canvas_in_frame("Box Plot"))
         self.ui.button_cavemap.clicked.connect(lambda: self.display_canvas_in_frame("Cave Map"))
 
+        ########################
+        ### Taskbar buttons on left-hand side
+
+        #self.ui.pushButton_13.clicked.connect(ProjectManager.del_project)
+        self.ui.pushButton_14.clicked.connect(lambda: [self.ui.main_body_stack.setCurrentWidget(self.ui.load_page),
+                                                        self.load_projects_list()
+                                                        ])
+        self.ui.pushButton_15.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.create_project_page))
         #########################
         #### Load project page buttons
+        self.ui.load_button_side.clicked.connect(lambda: [self.ui.main_body_stack.setCurrentWidget(self.ui.load_page),
+                                                        self.load_projects_list()
+                                                        ])
         self.ui.load_back_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
 
         #########################
@@ -189,7 +218,7 @@ class MainWindow(QMainWindow):
                 self.agg_method = "mean"
         self.display_canvas_in_frame("Bar Graph")  # Redraw the bar graph
 
-    def display_canvas_in_frame(self, graph_type):
+    def display_canvas_in_frame(self, graph_type=None, project_name=None):
         plt.clf()
         # Clear previous widgets in the layout
         while self.ui.verticalLayout_55.count():
@@ -201,12 +230,24 @@ class MainWindow(QMainWindow):
         self.canv = MatplotlibCanvas(self, width=8, height=4, dpi=100)
         toolbar = Navi(self.canv, self)  # Add navigation toolbar
 
-
+        print(self.df)
         # Check if DataFrame exists and isn't empty
         if not hasattr(self, 'df') or self.df.empty:
             self.get_plot_data()
 
-        project_name = ProjectManager.get_project()
+        # Check if a project is loaded or a project name is provided
+        if project_name is None:
+            project_name = ProjectManager.get_project()
+        
+        if project_name is None:
+            QMessageBox.warning(
+                self,
+                "No Project Loaded",
+                "Please load a project before plotting data."
+            )
+            return
+        #project_name = ProjectManager.get_project()
+
         base_data_dir = os.path.join("Projects", project_name, "datafiles")
         premerge_data_dir = os.path.join(base_data_dir, "processed_data")
         merged_data_dir = os.path.join(base_data_dir, "processed_data")
@@ -507,6 +548,199 @@ class MainWindow(QMainWindow):
         if success:
             self.ui.main_body_stack.setCurrentWidget(self.ui.project_homepage)
             self.switchActiveTaskbar()
+
+    def load_projects_list(self):
+        """Load all projects and display them in styled frames like the example"""
+
+        projects = ProjectManager.get_all_projects()
+        
+        if not projects:
+            # Create a "no projects" message frame styled like the example
+            no_projects_frame = QFrame()
+            no_projects_frame.setObjectName("noProjectsFrame")
+            no_projects_frame.setStyleSheet(self.ui.example_loadfile_container.styleSheet())
+            no_projects_frame.setFrameShape(QFrame.Shape.StyledPanel)
+            no_projects_frame.setFrameShadow(QFrame.Shadow.Raised)
+            
+            layout = QHBoxLayout(no_projects_frame)
+            layout.setContentsMargins(0, 0, 0, 0)
+            
+            label = QLabel("No projects found")
+            label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            label.setFont(self.font2)  # Use your existing font
+            layout.addWidget(label)
+            
+            self.ui.verticalLayout_18.addWidget(no_projects_frame)
+            return
+        
+        for project in projects:
+            # Create container frame (same style as self.example_loadfile_container_)
+            project_frame = QFrame(self.ui.load_body)
+            project_frame.setObjectName(f"projectFrame_{project['project_name']}")
+            project_frame.setStyleSheet(self.ui.example_loadfile_container.styleSheet())
+            project_frame.setFrameShape(QFrame.Shape.StyledPanel)
+            project_frame.setFrameShadow(QFrame.Shadow.Raised)
+
+            # Main horizontal layout
+            frame_layout = QHBoxLayout(project_frame)
+            frame_layout.setSpacing(0)
+            frame_layout.setContentsMargins(0, 0, 0, 0)
+            
+            # Left side - Project info (matches example_loadfile_info)
+            info_frame = QFrame(project_frame)
+            info_frame.setObjectName(f"infoFrame_{project['project_name']}")
+            sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+            sizePolicy.setHorizontalStretch(0)
+            sizePolicy.setVerticalStretch(0)
+            sizePolicy.setHeightForWidth(self.ui.example_loadfile_info.sizePolicy().hasHeightForWidth())
+            info_frame.setStyleSheet(self.ui.example_loadfile_info.styleSheet())
+            info_frame.setSizePolicy(sizePolicy)
+            info_frame.setFrameShape(QFrame.Shape.StyledPanel)
+            info_frame.setFrameShadow(QFrame.Shadow.Raised)
+            
+            info_layout = QVBoxLayout(info_frame)
+            info_layout.setObjectName(u"verticalLayout")
+            info_layout.setSpacing(0)
+            info_layout.setContentsMargins(0, 0, 0, 0)
+            
+            # Project name (like label_26)
+            name_label = QLabel(project['project_name'])
+            name_label.setObjectName(f"projectName_{project['project_name']}")
+            name_label.setFont(self.font2)
+            info_layout.addWidget(name_label)
+            
+            # Project files, number of saved data files and image files (like label_27)
+            project_name = project['project_name']
+            base_data_dir = os.path.join("Projects", project_name, "datafiles")
+            data_dir = os.path.join(base_data_dir, "raw_data")
+            viz_dir = os.path.join(base_data_dir, "images")
+            data_lst = os.listdir(data_dir)
+            viz_lst = os.listdir(viz_dir)
+            attached_file_count = len(data_lst)
+            attached_viz_count = len(viz_lst)
+
+            desc_label = QLabel(f"{attached_file_count} attached files, {attached_viz_count} saved graphs")
+            desc_label.setObjectName(f"projectDesc_{project['project_name']}")
+            desc_label.setWordWrap(True)
+            info_layout.addWidget(desc_label)
+            
+            # Last modified date (like label_28)
+            date_label = QLabel(f"Last accessed: {project['last_modified']}")
+            date_label.setObjectName(f"projectDate_{project['project_name']}")
+            date_label.setFont(self.font5)  
+            info_layout.addWidget(date_label)
+            
+            frame_layout.addWidget(info_frame)
+            
+            # Right side - Buttons (matches example_loadfile_buttons)
+            buttons_frame = QFrame()
+            buttons_frame.setObjectName(f"buttonsFrame_{project['project_name']}")
+            buttons_frame.setStyleSheet(self.ui.example_loadfile_buttons.styleSheet())
+            buttons_frame.setFrameShape(QFrame.Shape.StyledPanel)
+            buttons_frame.setFrameShadow(QFrame.Shadow.Raised)
+            
+            buttons_layout = QVBoxLayout(buttons_frame)
+            buttons_layout.setSpacing(6)
+            buttons_layout.setContentsMargins(0, 0, 0, 0)
+            
+            # Load button (like pushButton_3)
+            load_btn = QPushButton("Load")
+            load_btn.setObjectName(f"loadBtn_{project['project_name']}")
+            load_btn.setStyleSheet(self.ui.pushButton_3.styleSheet())
+            load_btn.clicked.connect(lambda _, p=project: self.handle_project_load(p))
+            buttons_layout.addWidget(load_btn)
+            
+            # Edit button (like pushButton_4)
+            edit_btn = QPushButton("Edit")
+            edit_btn.setObjectName(f"editBtn_{project['project_name']}")
+            edit_btn.setStyleSheet(self.ui.pushButton_4.styleSheet())
+            #edit_btn.clicked.connect(lambda _, p=project: self.handle_project_edit(p))
+            buttons_layout.addWidget(edit_btn)
+            
+            # Delete button (like pushButton_7)
+            delete_btn = QPushButton("Delete")
+            delete_btn.setObjectName(f"deleteBtn_{project['project_name']}")
+            delete_btn.setStyleSheet(self.ui.pushButton_7.styleSheet())
+            delete_btn.clicked.connect(lambda _, p=project: self.handle_project_delete(p))
+            buttons_layout.addWidget(delete_btn)
+            
+            frame_layout.addWidget(buttons_frame)
+            
+            # Add the completed project frame to the scroll area
+            self.ui.verticalLayout_18.addWidget(project_frame)
+        
+        # Add stretch to push content up
+        self.ui.verticalLayout_18.addStretch()
+
+    def handle_project_load(self, project=None):
+        """Handle project loading of data"""
+        if not project:
+            QMessageBox.warning(
+                self,
+                "No Project Selected",
+                "Please load or select a file first"
+            )
+            return
+        
+        project_name = project['project_name']
+        try:
+            # Call readData with the project to load preprocessed data
+            df, sensor_states = self.data_processor.readData(project=project)
+            
+            if df is None or sensor_states is None:
+                raise Exception("Failed to load project data")
+            
+            # Store the loaded data
+            self.df = df
+            self.sensor_states = sensor_states
+            
+            # Switch to the project home page
+            ProjectManager.set_project(project_name)
+            self.ui.main_body_stack.setCurrentWidget(self.ui.project_homepage)
+            self.switchActiveTaskbar()
+
+            # Display a success message
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Project '{project_name}' loaded successfully"
+            )
+            
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error",
+                f"An error occurred while loading the project: {str(e)}"
+            )
+            print(f"Error loading project: {str(e)}")
+            traceback.print_exc()
+                
+    def handle_project_delete(self, project=None):
+        """Handle project deletion with confirmation"""
+        print(project)
+        if not project:
+            QMessageBox.warning(
+                self,
+                "No Project Selected",
+                "Please load or select a file first"
+            )
+            return
+        project_name = project['project_name']
+        if ProjectManager.del_project(project_name):
+             # Successful deletion - update UI
+            self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)
+            self.switchActiveTaskbar()
+
+            # Show success message
+            QMessageBox.information(
+                self,
+                "Success",
+                f"Project '{project}' was deleted successfully"
+            ) 
+            self.load_projects_list()  # Refresh the list
+
+    def handle_project_modification(self):
+        pass
 
     def returnHome(self):
         self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)

@@ -20,9 +20,78 @@ class ProjectManager:
         cls.current_project = project_name
     
     @classmethod
+    def del_project(cls, project_name=None):
+        """Delete a project, with optional project_name parameter"""
+
+        target_project = project_name if project_name is not None else cls.current_project
+        if target_project is None:
+            return False
+        
+        #current_project = cls.get_project()
+        proj_dir = os.path.join("Projects", target_project)
+        
+        # First confirmation
+        confirm1 = QMessageBox.question(
+            None,
+            "Confirm Deletion",
+            f"Delete project '{target_project}' and all its files?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if confirm1 == QMessageBox.No:
+            return False
+        # Second confirmation
+        confirm2 = QMessageBox.question(
+            None,
+            "Final Warning",
+            "This cannot be undone! All project data will be permanently lost.\n"
+            "Are you absolutely sure?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        if confirm2 == QMessageBox.No:
+            return False
+    
+        try:
+            shutil.rmtree(proj_dir)
+            if cls.current_project == target_project:
+                cls.current_project = None  # Clear current if it was deleted
+            return True
+        except Exception as e:
+            cls.show_error_message(None, f"Failed to delete project: {str(e)}")
+            return False
+        
+    @classmethod
     def get_project(cls):
         return cls.current_project
     
+    @classmethod
+    def get_all_projects(cls):
+        """Return a list of all existing projects with their metadata"""
+        projects_dir = "Projects"
+        projects = []
+        
+        if not os.path.exists(projects_dir):
+            return projects
+        
+        for project_name in os.listdir(projects_dir):
+            project_path = os.path.join(projects_dir, project_name)
+            if os.path.isdir(project_path):
+                # Get project info from JSON file
+                project_info = cls.get_project_info(project_name)
+                
+                if project_info is None:
+                    # Create basic info if JSON is missing
+                    project_info = {
+                        "project_name": project_name,
+                        "project_description": "No description available",
+                        "created_at": "Unknown",
+                        "last_modified": "Unknown"
+                    }
+            
+                # Add the project path and any additional metadata
+                project_info["path"] = project_path
+                projects.append(project_info)
+
+        return projects
     @classmethod
     def create_new_project(cls, parent, project_name, project_description, data_processor):
         """Create a new project with validation and folder structure"""
@@ -113,7 +182,7 @@ class ProjectManager:
     @classmethod
     def get_project_info(cls, project_name):
         """Get project information from its JSON file"""
-        project_folder = os.path.join("Projects", project_name)
+        project_folder = os.path.join("Projects", project_name, "datafiles", "preprocessed_data")
         json_file = os.path.join(project_folder, "project_info.json")
         
         if not os.path.exists(json_file):
