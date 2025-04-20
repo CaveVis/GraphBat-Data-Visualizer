@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QIcon, QFont
 from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget,
                                 QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem,
-                                QLineEdit, QPushButton, QSizePolicy, QFrame, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem)
+                                QLineEdit, QPushButton, QPlainTextEdit, QSizePolicy, QFrame, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem)
 from mainwindow import Ui_mainwindow
 import pandas as pd
 import matplotlib
@@ -45,7 +45,6 @@ class MainWindow(QMainWindow):
         self.df = pd.DataFrame()  # Initialize empty DataFrame
         self.sensor_states = {}
 
-        # Add these font definitions right after you initialize your UI
         self.font = QFont()
         self.font.setFamilies([u"Verdana"])
         self.font.setPointSize(15)
@@ -164,7 +163,7 @@ class MainWindow(QMainWindow):
         ########################
         ### Taskbar buttons on left-hand side
 
-        #self.ui.pushButton_13.clicked.connect(ProjectManager.del_project)
+        self.ui.pushButton_13.clicked.connect(lambda: self.handle_project_edit())
         self.ui.pushButton_14.clicked.connect(lambda: [self.ui.main_body_stack.setCurrentWidget(self.ui.load_page),
                                                         self.load_projects_list()
                                                         ])
@@ -326,7 +325,7 @@ class MainWindow(QMainWindow):
                     for c in self.df.columns:
                         if not self.df[c].empty:
                             lines = self.canv.axes.plot(self.df.index, self.df[c], label = c)
-                            mplcursors.cursor(lines)  # or just mplcursors.cursor()
+                            mplcursors.cursor(lines)
 
 
                     # Modified anomaly plotting:
@@ -347,17 +346,39 @@ class MainWindow(QMainWindow):
                                 except Exception as e:
                                     print(f"Error plotting outliers: {e}")
 
-                    # Configure plot with larger fonts
-                    plt.rcParams.update({'font.size': 10})  # Set base font size
-                    self.canv.axes.xaxis.set_major_formatter(matplotlib.dates.DateFormatter('%Y-%m-%d'))
-                    self.canv.axes.xaxis.set_major_locator(matplotlib.dates.AutoDateLocator())
+                    # Determine the range of values for the x-axis
+                    x_min = self.df.index.min()
+                    x_max = self.df.index.max()
+                    x_range = x_max - x_min
+
+                    # Set custom x-axis tick marks
+                    x_ticks = [x_min + pd.Timedelta(seconds=i * (x_range.total_seconds() / 9)) for i in range(10)]
+                    x_ticks = [tick.round('S') for tick in x_ticks]  # Round to nearest second
+
+                    self.canv.axes.set_xticks(x_ticks)
+                    self.canv.axes.set_xlim(x_min, x_max)
+
+                    # Determine the range of values for each column
+                    y_min = self.df.min().min()
+                    y_max = self.df.max().max()
+                    y_range = y_max - y_min
+                    # Set custom y-axis tick marks
+                    y_ticks = [y_min + i * (y_range / 9) for i in range(10)]
+                    y_ticks[-1] = y_max  # Ensure the last tick is y_max
+
+                    y_ticks = [round(tick * 2) / 2 for tick in y_ticks]  # Round to nearest 0.5
+
+                    self.canv.axes.set_yticks(y_ticks)
+                    self.canv.axes.set_ylim(y_min, y_max)
+
                     # Rotate and adjust x-axis labels with larger font
+                    plt.rcParams.update({'font.size': 10})  # Set base font size
                     plt.setp(self.canv.axes.get_xticklabels(), rotation=45, ha='right', fontsize=10)
                     plt.setp(self.canv.axes.get_yticklabels(), fontsize=10)
                     legend = self.canv.axes.legend()
                     legend.set_draggable(True)
-                    self.canv.axes.set_xlabel('Date-Time', fontsize=18)
-                    self.canv.axes.set_ylabel('Measured Temperature(°C)', fontsize=18)
+                    self.canv.axes.set_xlabel('Date-Time', fontsize=16)
+                    self.canv.axes.set_ylabel('Measured Temperature(°C)', fontsize=16)
                     self.canv.axes.set_title('Temperature in Cave Over Time', fontsize=22, pad=20)
 
                 elif graph_type == "Bar Graph":
@@ -555,7 +576,7 @@ class MainWindow(QMainWindow):
         projects = ProjectManager.get_all_projects()
         
         if not projects:
-            # Create a "no projects" message frame styled like the example
+            # Create a "no projects" message frame style
             no_projects_frame = QFrame()
             no_projects_frame.setObjectName("noProjectsFrame")
             no_projects_frame.setStyleSheet(self.ui.example_loadfile_container.styleSheet())
@@ -567,7 +588,7 @@ class MainWindow(QMainWindow):
             
             label = QLabel("No projects found")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            label.setFont(self.font2)  # Use your existing font
+            label.setFont(self.font2)
             layout.addWidget(label)
             
             self.ui.verticalLayout_18.addWidget(no_projects_frame)
@@ -654,7 +675,7 @@ class MainWindow(QMainWindow):
             edit_btn = QPushButton("Edit")
             edit_btn.setObjectName(f"editBtn_{project['project_name']}")
             edit_btn.setStyleSheet(self.ui.pushButton_4.styleSheet())
-            #edit_btn.clicked.connect(lambda _, p=project: self.handle_project_edit(p))
+            edit_btn.clicked.connect(lambda _, p=project: self.handle_project_edit(p))
             buttons_layout.addWidget(edit_btn)
             
             # Delete button (like pushButton_7)
@@ -739,8 +760,50 @@ class MainWindow(QMainWindow):
             ) 
             self.load_projects_list()  # Refresh the list
 
-    def handle_project_modification(self):
-        pass
+    def handle_project_edit(self, project):
+        """Open project editing dialog"""
+        self.edit_project_dialog = QDialog(self)
+        self.edit_project_dialog.setWindowTitle("Edit Project")
+        
+        layout = QVBoxLayout()
+        
+        # Name
+        name_label = QLabel("Project Name:")
+        self.edit_name_input = QLineEdit(project['project_name'])
+        layout.addWidget(name_label)
+        layout.addWidget(self.edit_name_input)
+        
+        # Description
+        desc_label = QLabel("Description:")
+        self.edit_desc_input = QPlainTextEdit(project['project_description'])
+        layout.addWidget(desc_label)
+        layout.addWidget(self.edit_desc_input)
+        
+        # File management
+        file_btn = QPushButton("Add Data Files")
+        file_btn.clicked.connect(self.data_processor.getFileCSV)
+        layout.addWidget(file_btn)
+        
+        # Dialog buttons
+        btn_box = QDialogButtonBox(QDialogButtonBox.Save | QDialogButtonBox.Cancel)
+        btn_box.accepted.connect(self.edit_project_dialog.accept)
+        btn_box.rejected.connect(self.edit_project_dialog.reject)
+        layout.addWidget(btn_box)
+        
+        self.edit_project_dialog.setLayout(layout)
+        
+        if self.edit_project_dialog.exec() == QDialog.Accepted:
+            success = ProjectManager.edit_project(
+                parent=self,
+                old_name=project['project_name'],
+                new_name=self.edit_name_input.text().strip(),
+                new_description=self.edit_desc_input.toPlainText().strip(),
+                data_processor=self.data_processor
+            )
+            
+            if success:
+                self.load_projects_list()
+                QMessageBox.information(self, "Success", "Project updated successfully")
 
     def returnHome(self):
         self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)

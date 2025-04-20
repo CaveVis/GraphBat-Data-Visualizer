@@ -18,7 +18,61 @@ class ProjectManager:
     @classmethod
     def set_project(cls, project_name):
         cls.current_project = project_name
-    
+        
+    @classmethod
+    def edit_project(cls, parent, old_name, new_name, new_description, data_processor):
+        """Edit existing project metadata and data files"""
+        # Validate new name
+        if not new_name:
+            cls.show_error_message(parent, "Project name cannot be empty")
+            return False
+        
+        if new_name != old_name:
+            if not re.match(r'^[a-zA-Z0-9_\-()]+$', new_name):
+                cls.show_error_message(parent, "Invalid characters in project name")
+                return False
+            
+            if len(new_name) > 40:
+                cls.show_error_message(parent, "Project name too long (max 40 chars)")
+                return False
+
+        old_path = os.path.join("Projects", old_name)
+        new_path = os.path.join("Projects", new_name)
+
+        try:
+            # Rename directory if name changed
+            if new_name != old_name:
+                if os.path.exists(new_path):
+                    cls.show_error_message(parent, "Project name already exists")
+                    return False
+                shutil.move(old_path, new_path)
+
+            # Update project info
+            json_path = os.path.join(new_path, "project_info.json")
+            with open(json_path, 'r+') as f:
+                data = json.load(f)
+                data['project_name'] = new_name
+                data['project_description'] = new_description
+                data['last_modified'] = datetime.datetime.now().isoformat()
+                f.seek(0)
+                json.dump(data, f, indent=4)
+                f.truncate()
+
+            # Update current project if it was edited
+            if cls.current_project == old_name:
+                cls.current_project = new_name
+
+            # Process new data files
+            raw_data_path = os.path.join(new_path, "datafiles", "raw_data")
+            if hasattr(data_processor, 'filenames') and data_processor.filenames:
+                for file_path in data_processor.filenames:
+                    shutil.copy2(file_path, raw_data_path)
+
+            return True
+        except Exception as e:
+            cls.show_error_message(parent, f"Error editing project: {str(e)}")
+            return False
+        
     @classmethod
     def del_project(cls, project_name=None):
         """Delete a project, with optional project_name parameter"""
@@ -96,7 +150,7 @@ class ProjectManager:
     def create_new_project(cls, parent, project_name, project_description, data_processor):
         """Create a new project with validation and folder structure"""
         max_title_len = 40
-        max_desc_len = 2000
+        max_desc_len = 500
         
         # Error checking for project name
         if not project_name:
@@ -144,10 +198,18 @@ class ProjectManager:
                 msg_box.setWindowTitle("Confirm Save")
                 msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                 result = msg_box.exec()
-
                 if result == QMessageBox.No:
                     return False
-
+            elif hasData:
+                # Saving with CSV files attached
+                msg_box = QMessageBox()
+                msg_box.setIcon(QMessageBox.Question)
+                msg_box.setText("You are about to save a project that has a dataset attached. Please confirm that you want to save. This action will update the dataset accordingly.")
+                msg_box.setWindowTitle("Confirm Save")
+                msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                result = msg_box.exec()
+                if result == QMessageBox.No:
+                    return False
             # Create directories
             os.makedirs(project_folder)
             data_subfolders = ['raw_data', 'preprocessed_data', 'processed_data', 'images', 'videos']
