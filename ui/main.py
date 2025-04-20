@@ -137,7 +137,7 @@ class MainWindow(QMainWindow):
         ### Project page buttons
 
         self.ui.button_linegraph.clicked.connect(lambda: self.display_canvas_in_frame("Line Graph"))
-        self.ui.dropdown_bargraph.currentTextChanged.connect(self.update_bar_agg_method)
+        self.ui.dropdown_bargraph.activated.connect(self.update_bar_agg_method)
         self.ui.button_histogram.clicked.connect(lambda: self.display_canvas_in_frame("Histogram"))
         self.ui.button_boxplot.clicked.connect(lambda: self.display_canvas_in_frame("Box Plot"))
         self.ui.button_cavemap.clicked.connect(lambda: self.display_canvas_in_frame("Cave Map"))
@@ -205,6 +205,11 @@ class MainWindow(QMainWindow):
         # Check if DataFrame exists and isn't empty
         if not hasattr(self, 'df') or self.df.empty:
             self.get_plot_data()
+
+        project_name = ProjectManager.get_project()
+        base_data_dir = os.path.join("Projects", project_name, "datafiles")
+        premerge_data_dir = os.path.join(base_data_dir, "processed_data")
+        merged_data_dir = os.path.join(base_data_dir, "processed_data")
         
         #Clear the axes
         self.canv.axes.cla()
@@ -243,14 +248,20 @@ class MainWindow(QMainWindow):
                                 self.sensor_states[sensor_col].update({
                                     'status': 'cleaned',
                                     'processed_data': cleaned_data
-                                })
-                                
+                                })    
                             elif dialog.result == "ignore":
                                 self.sensor_states[sensor_col]['status'] = 'ignored'
                                 
                             elif dialog.result == "view":
                                 self.sensor_states[sensor_col]['status'] = 'viewed'
-                
+
+                     # Save individual processed sensor data
+                    if 'processed_data' in state:
+                        sensor_name = sensor_col
+                        processed_filename = f"processed_{sensor_name}.csv"
+                        processed_filepath = os.path.join(premerge_data_dir, processed_filename)
+                        state['processed_data'].to_csv(processed_filepath)
+
                 # Rebuild main dataframe after any changes
                 dfs = []
                 for sensor_col, state in self.sensor_states.items():
@@ -262,10 +273,12 @@ class MainWindow(QMainWindow):
 
                 #Rename columns to Sensor 1, Sensor 2, etc.
                 self.df.columns = [f"Sensor {i+1}" for i in range(self.df.shape[1])]
-                #Write altered to CSV
-                os.makedirs('datafiles', exist_ok=True)
-                file_path = os.path.join('datafiles', 'alteredDF.csv')
-                self.df.to_csv(file_path)
+
+                # Save merged dataframe
+                if not self.df.empty:
+                    processed_merged_filename = "processed_merged_data.csv"
+                    processed_merged_filepath = os.path.join(merged_data_dir, processed_merged_filename)
+                    self.df.to_csv(processed_merged_filepath)     
 
                 if graph_type == "Line Graph":
                     #First plot all clean_data points regardless of anomaly status
@@ -517,7 +530,7 @@ class MainWindow(QMainWindow):
             json.dump(project_data, f, indent=4)  # indent=4 for pretty formatting   
 
         #Create subfolders under datafiles in project 
-        data_subfolders = ['raw_data', 'processed_data', 'images', 'videos']
+        data_subfolders = ['raw_data', 'preprocessed_data','processed_data', 'images', 'videos']
         for folder in data_subfolders:
             folder_path = os.path.join(project_folder,'datafiles', folder)
             os.makedirs(folder_path, exist_ok=True)

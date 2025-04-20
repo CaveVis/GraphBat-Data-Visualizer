@@ -225,8 +225,7 @@ class DataProcessor:
             if not self.filenames:
                 print("No valid files selected.")
                 return
-
-
+            
             try:
                 #Only asks for columns on first file and used for all files
                 f_file = self.filenames[0]
@@ -284,11 +283,8 @@ class DataProcessor:
 
         project_name = ProjectManager.get_project()
         base_data_dir = os.path.join("Projects", project_name, "datafiles")
-        premerge_data_dir = os.path.join(base_data_dir, "processed_data")
-        merged_data_dir = os.path.join(base_data_dir, "processed_data")
-        # Create directories if they don't exist
-        #os.makedirs(premerge_data_dir, exist_ok=True)
-        #os.makedirs(merged_data_dir, exist_ok=True)
+        premerge_data_dir = os.path.join(base_data_dir, "preprocessed_data")
+        merged_data_dir = os.path.join(base_data_dir, "preprocessed_data")
 
         #First pass: Read and preprocess all files
         merged_dfs = []
@@ -399,10 +395,10 @@ class DataProcessor:
             self.df = self.df.sort_index().dropna(axis=0)
         
             # Save the merged dataframe
-            merged_filename = "merged_data.csv"
-            merged_filepath = os.path.join(merged_data_dir, merged_filename)
-            self.df.to_csv(merged_filepath)
-            print(f"Saved merged data: {merged_filepath}")
+            raw_merged_filename = "preprocessed_merged_data.csv"
+            raw_merged_filepath = os.path.join(merged_data_dir, raw_merged_filename)
+            self.df.to_csv(raw_merged_filepath)
+            print(f"Saved merged data: {raw_merged_filepath}")
 
         return self.df, self.sensor_states
 
