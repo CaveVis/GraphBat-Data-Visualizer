@@ -23,6 +23,7 @@ import src.data_processing.data_processor as data_processor
 from src.data_processing.data_processor import AnomalyDialog, ColumnSelectionDialog, DataProcessor
 import src.project_management.project_manager as project_manager
 from src.project_management.project_manager import ProjectManager
+
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None,width=5, height = 5, dpi = 120):
@@ -131,7 +132,7 @@ class MainWindow(QMainWindow):
         self.ui.create_add_data_button.clicked.connect(self.data_processor.getFileCSV)
         self.ui.create_add_map_button.clicked.connect(self.data_processor.getFileImage)
         #Create button (demo code)
-        self.ui.confirm_create_button.clicked.connect(lambda: self.createNewProject())
+        self.ui.confirm_create_button.clicked.connect(lambda: self.handle_project_creation())
 
         ########################
         ### Project page buttons
@@ -173,7 +174,6 @@ class MainWindow(QMainWindow):
     def update_bar_agg_method(self):
         """Update aggregation method based on dropdown selection"""
         text = self.ui.dropdown_bargraph.currentText()
-        print(text)
         match text:
             case "Bar Graph - Mean":
                 self.agg_method = "mean"
@@ -493,99 +493,20 @@ class MainWindow(QMainWindow):
         else:
             self.ui.taskbar_body_container.setCurrentIndex(0)   #homepage taskbar
 
-    def createNewProject(self):
-        maxTitleLen = 50
-        maxDescLen = 500
+    def handle_project_creation(self):
         project_name = self.ui.textEdit.toPlainText().strip()
         project_description = self.ui.plainTextEdit.toPlainText().strip()
-
-        # Error checking for project name
-        if not project_name:
-            self.showErrorMessage("Project name is empty")
-            return
-        if len(project_name) > maxTitleLen:
-            self.showErrorMessage(f"Project name cannot exceed {maxTitleLen} chars")
-            return
-        # Validate description length
-        if len(project_description) > maxDescLen:
-            self.showErrorMessage(f"Project description cannot exceed {maxDescLen} characters")
-            return
-
-        # Create a dictionary for project data
-        project_data = {"project_name": project_name,
-                        "project_description": project_description,
-                        "created_at": datetime.datetime.now().isoformat(),
-                        "last_modified": datetime.datetime.now().isoformat()
-                        }
-
-        # Get the root directory of your project (Cave-Data-App)
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-        # Construct the path to the Projects directory
-        projects_dir = os.path.join(project_root, "Projects")
-
-        # Create directory to the main project folder
-        project_folder = os.path.join(projects_dir, project_name)
-
-        if os.path.exists(project_folder):
-            self.showErrorMessage(f"A project named '{project_name}' exists, try a diffrent name")
-            return
-
-        project_manager.ProjectManager.set_project(project_name)
-        # Define the JSON file path
-        json_file_path = os.path.join(project_folder, "project_info.json")
-        # Write to JSON file
-        with open(json_file_path, 'w', encoding='utf-8') as f:
-            json.dump(project_data, f, indent=4)  # indent=4 for pretty formatting
-
-        #Create subfolders under datafiles in project 
-        data_subfolders = ['raw_data', 'preprocessed_data','processed_data', 'images', 'videos']
-        for folder in data_subfolders:
-            folder_path = os.path.join(project_folder, 'datafiles', folder)
-            os.makedirs(folder_path, exist_ok=True)
-            print(f"Created directory: {folder_path}")
-
-        # Save unmerged csv files to datafiles/raw_data
-        if not hasattr(self, 'filenames') or not self.filenames:
-            print("No files to save")
-        raw_data_path = os.path.join("Projects", project_name, "datafiles", "raw_data")
-        os.makedirs(raw_data_path, exist_ok=True)
-
-        for file_path in self.data_processor.filenames:
-            try:
-                # Get the base filename
-                filename = os.path.basename(file_path)
-
-                # Create destination path
-                dest_path = os.path.join(raw_data_path, filename)
-
-                # Copy the original file
-                shutil.copy2(file_path, dest_path)
-                print(f"Saved raw file: {dest_path}")
-
-            except Exception as e:
-                print(f"Error saving {file_path}: {str(e)}")
-                traceback.print_exc()
-
-        self.ui.main_body_stack.setCurrentWidget(self.ui.project_homepage)
-        self.switchActiveTaskbar()
-
-        try:
-            os.makedirs(project_folder)
-            print(f"Directory '{project_folder}' created successfully.")
-        except FileExistsError:
-            print(f"Directory '{project_folder}' already exists.")
-        except PermissionError:
-            print(f"Permission denied: Unable to create '{project_folder}'.")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-        #Error Message
-    def showErrorMessage(self, message):
-        QMessageBox.warning(self, "Error", message)
-
-    def showSuccessMessage(self, message):
-        QMessageBox.information(self, "Success", message)
+        
+        success = ProjectManager.create_new_project(
+            parent=self,
+            project_name=project_name,
+            project_description=project_description,
+            data_processor=self.data_processor
+        )
+        
+        if success:
+            self.ui.main_body_stack.setCurrentWidget(self.ui.project_homepage)
+            self.switchActiveTaskbar()
 
     def returnHome(self):
         self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)
