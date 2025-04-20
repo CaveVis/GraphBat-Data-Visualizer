@@ -1,5 +1,6 @@
 import os
 import json
+import re
 import shutil
 import datetime
 import traceback
@@ -25,8 +26,8 @@ class ProjectManager:
     @classmethod
     def create_new_project(cls, parent, project_name, project_description, data_processor):
         """Create a new project with validation and folder structure"""
-        max_title_len = 50
-        max_desc_len = 500
+        max_title_len = 40
+        max_desc_len = 2000
         
         # Error checking for project name
         if not project_name:
@@ -35,6 +36,14 @@ class ProjectManager:
         if len(project_name) > max_title_len:
             cls.show_error_message(parent, f"Project name cannot exceed {max_title_len} chars")
             return False
+
+        validChar = re.compile(r'^[a-zA-Z0-9_\-()]+$')
+        if not validChar.match(project_name):
+            # Find the invalid character
+            for char in project_name:
+                if not re.match(r'[a-zA-Z0-9_\-()]', char):
+                    cls.show_error_message(parent, f"'{char}' is not allowed.")
+                    return False
         # Validate description length
         if len(project_description) > max_desc_len:
             cls.show_error_message(parent, f"Project description cannot exceed {max_desc_len} characters")
@@ -54,6 +63,21 @@ class ProjectManager:
                 "created_at": datetime.datetime.now().isoformat(),
                 "last_modified": datetime.datetime.now().isoformat()
             }
+
+            os.makedirs("Projects", exist_ok=True)
+            hasData = hasattr(data_processor, 'filenames') and data_processor.filenames
+
+            if not hasData:
+                # Saving without CSV files attached
+                msg_box = QMessageBox()
+                msg_box.setIcon(QMessageBox.Question)
+                msg_box.setText("Project does not contain any CSV files (CSV files can be added later). Save new project?")
+                msg_box.setWindowTitle("Confirm Save")
+                msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                result = msg_box.exec()
+
+                if result == QMessageBox.No:
+                    return False
 
             # Create directories
             os.makedirs(project_folder)
