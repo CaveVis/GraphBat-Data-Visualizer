@@ -176,6 +176,11 @@ QMessageBox QLabel
 color: #000000;
 }
 
+QDialog, QDialog QLabel 
+{
+color: #000000;
+}
+
 QTextEdit, QPlainTextEdit
 {
 color: #000000;
