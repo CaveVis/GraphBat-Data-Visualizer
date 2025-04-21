@@ -721,11 +721,22 @@ class MainWindow(QMainWindow):
             self.ui.main_body_stack.setCurrentWidget(self.ui.project_homepage)
             self.switchActiveTaskbar()
 
+    def clear_project_widgets_only(self):
+        """Clear only project-related widgets from the layout"""
+        for i in reversed(range(self.ui.verticalLayout_18.count())):
+            widget = self.ui.verticalLayout_18.itemAt(i).widget()
+            if widget and (widget.objectName().startswith("projectFrame_") 
+                        or widget.objectName() == "noProjectsFrame"):
+                widget.deleteLater()
+                self.ui.verticalLayout_18.removeWidget(widget)
+
     def load_projects_list(self):
         """Load all projects and display them in styled frames like the example"""
 
+        #First clear all existing project frames
+        self.clear_project_widgets_only()
         projects = ProjectManager.get_all_projects()
-        
+    
         if not projects:
             # Create a "no projects" message frame style
             no_projects_frame = QFrame()
@@ -737,7 +748,7 @@ class MainWindow(QMainWindow):
             layout = QHBoxLayout(no_projects_frame)
             layout.setContentsMargins(0, 0, 0, 0)
             
-            label = QLabel("No projects found")
+            label = QLabel("No user projects found")
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             label.setFont(self.font2)
             layout.addWidget(label)
@@ -853,7 +864,6 @@ class MainWindow(QMainWindow):
                 "Please load or select a file first"
             )
             return
-        
         project_name = project['project_name']
         try:
             # Call readData with the project to load preprocessed data
@@ -889,7 +899,6 @@ class MainWindow(QMainWindow):
                 
     def handle_project_delete(self, project=None):
         """Handle project deletion with confirmation"""
-        print(project)
         if not project:
             QMessageBox.warning(
                 self,
@@ -897,20 +906,24 @@ class MainWindow(QMainWindow):
                 "Please load or select a file first"
             )
             return
-        project_name = project['project_name']
-        if ProjectManager.del_project(project_name):
+        
+        if ProjectManager.del_project(project['project_name']):
              # Successful deletion - update UI
             self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)
             self.switchActiveTaskbar()
-
+            
+            project_frame = self.findChild(QFrame, f"projectFrame_{project['project_name']}")
+            if project_frame:
+                project_frame.deleteLater()
+                self.ui.verticalLayout_18.removeWidget(project_frame)
+           
             # Show success message
             QMessageBox.information(
                 self,
                 "Success",
-                f"Project '{project}' was deleted successfully"
+                f"Project '{project['project_name']}' was deleted successfully"
             ) 
-            self.load_projects_list()  # Refresh the list
-
+            
     def handle_project_edit(self, project):
         """Open project editing dialog"""
         self.edit_project_dialog = QDialog(self)

@@ -146,6 +146,7 @@ class ProjectManager:
                 projects.append(project_info)
 
         return projects
+    
     @classmethod
     def create_new_project(cls, parent, project_name, project_description, data_processor):
         """Create a new project with validation and folder structure"""
@@ -244,12 +245,11 @@ class ProjectManager:
     @classmethod
     def get_project_info(cls, project_name):
         """Get project information from its JSON file"""
-        project_folder = os.path.join("Projects", project_name, "datafiles", "preprocessed_data")
+        project_folder = os.path.join("Projects", project_name)
         json_file = os.path.join(project_folder, "project_info.json")
         
         if not os.path.exists(json_file):
             return None
-            
         try:
             with open(json_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
