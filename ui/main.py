@@ -23,7 +23,7 @@ import src.data_processing.data_processor as data_processor
 from src.data_processing.data_processor import AnomalyDialog, ColumnSelectionDialog, DataProcessor
 import src.project_management.project_manager as project_manager
 from src.project_management.project_manager import ProjectManager
-
+from src.draw_tool import PaintGrid
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None,width=5, height = 5, dpi = 120):
@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
         self.canv = MatplotlibCanvas(self)
         self.df = pd.DataFrame()  # Initialize empty DataFrame
         self.sensor_states = {}
-
+        self.cave_map_background_path = None 
         self.font = QFont()
         self.font.setFamilies([u"Verdana"])
         self.font.setPointSize(15)
@@ -501,6 +501,75 @@ class MainWindow(QMainWindow):
                     except Exception as e:
                         print(f"Error in box plot plotting: {e}")
                         raise
+                elif graph_type == "Cave Map":
+                    print("Setting up Cave Map (PaintGrid)...")
+                    # If not already stored, ask the user
+                    if not self.cave_map_background_path:
+                        # Use PySide6 static method syntax
+                        filePath, _ = QFileDialog.getOpenFileName(self, "Select Cave Map Image", "", "Images (*.png *.jpg *.bmp *.jpeg)")
+                        if filePath:
+                            self.cave_map_background_path = filePath
+                        else:
+                            QMessageBox.warning(self, "Cave Map", "No background image selected. Cannot display Cave Map.")
+
+                            return # Stop if no image is provided
+
+
+                    try:
+                        initial_brush_size = 5 
+                        self.paint_grid_widget = PaintGrid(brush_size=initial_brush_size, background=self.cave_map_background_path)
+                        self.paint_grid_widget.setObjectName("paintGridWidget") 
+                        self.ui.verticalLayout_55.addWidget(self.paint_grid_widget)
+
+                    except Exception as e:
+                        print(f"Error creating or adding PaintGrid: {e}")
+                        traceback.print_exc()
+                        QMessageBox.critical(self, "Cave Map Error", f"Failed to display Cave Map: {e}")
+
+                      
+                        """
+                        #Pre-work
+                        sensor_positions = {}
+                        sensor_names = self.df.columns.to_list()
+                    
+                        ## Implement Drag-n-drop or select-n-click eventually 
+                        for sensor in sensor_names:
+                            sensor_positions[sensor] = (0,0)    ## Can use input box to get x and y for now
+                
+                        mask_ = None ###################################  GET FROM DRAWTOOL 
+                        dist_lin = {sensor: self.heatmap_widget.dist_linear(sensor_positions[sensor], mask_) for sensor in sensor_positions}
+                        dist_dijk = {sensor: self.heatmap_widget.dijkstras(sensor_positions[sensor], mask_) for sensor in sensor_positions}
+                        mode_select = 1 ################################## Should be a check box
+                        sensor_distances = dist_lin if mode_select == 0 else dist_dijk
+                        std_dev, avg_val = self.heatmap_widget.get_sdev_from_dataframe(self.df)
+                        sensor_x, sensor_y = self.heatmap_widget.get_sx_sy(sensor_positions, sensor_names)
+                        # Call the plotting function with the required arguments
+                        self.heatmap_widget.plot_data(
+                            dfs=self.df, 
+                            timestamps=self.df.index.to_list(),
+                            sensor_x=sensor_x,  ## need get from button input (buttons?  pop ups?  idk.  this might suck )
+                            sensor_y=sensor_y,  ## need get from button input
+                            cave_map=self.heatmap_widget.load_cave_map(),   ## this needs to be the path to the file they uploaded as map
+                            mask_=mask_,                               ## get from file?  like a file explorer maybe?  
+                            sensor_distances=sensor_distances,
+                            sensor_names=self.df.columns.to_list(),
+                            s_dev=std_dev,
+                            avg=avg_val,
+                            sdev_steps=2,
+                            alpha=1,
+                            c_map_name='jet'
+                        )
+                    """
+                    except Exception as e:
+                        print(f"Error displaying cave map: {e}")
+                        raise
+
+                self.canv.draw()
+                self.canv.figure.tight_layout()
+
+            except Exception as e:
+                print("Plotting error:", e)
+                traceback.print_exc()
 
                 self.canv.draw()
                 self.canv.figure.tight_layout()
