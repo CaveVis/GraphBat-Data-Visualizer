@@ -123,10 +123,16 @@ class MainWindow(QMainWindow):
         ##############################
         ### Set up session variables
         ##############################
+        self.navigation_stack = []
         self.canv = MatplotlibCanvas(self)
         self.df = pd.DataFrame()  # Initialize empty DataFrame
         self.sensor_states = {}
-        self.cave_map_background_path = None 
+        self.cave_map_background_path = None
+
+        # Create DataProcessor instance
+        self.data_processor = data_processor.DataProcessor(parent=self)
+
+        #Set up fonts for project labels
         self.font = QFont()
         self.font.setFamilies([u"Verdana"])
         self.font.setPointSize(15)
@@ -141,9 +147,6 @@ class MainWindow(QMainWindow):
         self.font5.setFamilies([u"Verdana"])
         self.font5.setPointSize(11)
         self.font5.setItalic(True)
-
-        # Create DataProcessor instance
-        self.data_processor = data_processor.DataProcessor(parent=self)
 
         ### Load existing user preferences ###
         self.app_settings = QSettings("GraphBat", "userPrefs")
@@ -190,7 +193,7 @@ class MainWindow(QMainWindow):
         #Maximize button
         self.ui.maximize_button.clicked.connect(lambda: self.toggleMaximized())
         #Settings button
-        self.ui.settings_button_top.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.settings_page))
+        self.ui.settings_button_top.clicked.connect(lambda: self.navigate_to(self.ui.settings_page))
         #Home button
         self.ui.home_button.clicked.connect(lambda: self.returnHome())
         ###################################################
@@ -199,13 +202,13 @@ class MainWindow(QMainWindow):
 
         #### Homescreen taskbar buttons ############################
         #About button
-        self.ui.about_button_side.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.about_page))
+        self.ui.about_button_side.clicked.connect(lambda: self.navigate_to(self.ui.about_page))
         #Settings button
-        self.ui.settings_button_side.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.settings_page))
+        self.ui.settings_button_side.clicked.connect(lambda: self.navigate_to(self.ui.settings_page))
         #Create project button
-        self.ui.create_button_side.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.create_project_page))
+        self.ui.create_button_side.clicked.connect(lambda: self.navigate_to(self.ui.create_project_page))
         #Load project button
-        self.ui.load_button_side.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.load_page))
+        self.ui.load_button_side.clicked.connect(lambda: self.navigate_to(self.ui.load_page))
 
         ###Project taskbar ##################
         self.ui.project_taskbar_toolbox.currentChanged.connect(lambda: self.updateToolboxIcons(self.ui.project_taskbar_toolbox, self.ui.project_taskbar_toolbox.currentIndex()))
@@ -218,15 +221,15 @@ class MainWindow(QMainWindow):
 
         ### Homescreen primary buttons
         #Create button
-        self.ui.create_button_main.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.create_project_page))
+        self.ui.create_button_main.clicked.connect(lambda: self.navigate_to(self.ui.create_project_page))
         #Load button
-        self.ui.load_button_main.clicked.connect(lambda: [self.ui.main_body_stack.setCurrentWidget(self.ui.load_page),
+        self.ui.load_button_main.clicked.connect(lambda: [self.navigate_to(self.ui.load_page),
                                                         self.load_projects_list()
                                                         ])
 
         #### Create project page buttons #####################
         #Cancel button
-        self.ui.cancel_create_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
+        self.ui.cancel_create_button.clicked.connect(lambda:self.go_back())
 
         self.ui.create_add_data_button.clicked.connect(self.data_processor.getFileCSV)
         self.ui.create_add_map_button.clicked.connect(self.data_processor.getFileImage)
@@ -246,25 +249,34 @@ class MainWindow(QMainWindow):
         ### Taskbar buttons on left-hand side
 
         self.ui.pushButton_13.clicked.connect(lambda: self.handle_project_edit())
-        self.ui.pushButton_14.clicked.connect(lambda: [self.ui.main_body_stack.setCurrentWidget(self.ui.load_page),
+        self.ui.pushButton_14.clicked.connect(lambda: [self.navigate_to(self.ui.load_page),
                                                         self.load_projects_list()
                                                         ])
-        self.ui.pushButton_15.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.create_project_page))
+        self.ui.pushButton_15.clicked.connect(lambda: self.navigate_to(self.ui.create_project_page))
+        self.ui.pushButton_11.clicked.connect(lambda: self.navigate_to(self.ui.settings_page))
+
         #########################
         #### Load project page buttons
-        self.ui.load_button_side.clicked.connect(lambda: [self.ui.main_body_stack.setCurrentWidget(self.ui.load_page),
+        self.ui.load_button_side.clicked.connect(lambda: [self.navigate_to(self.ui.load_page),
                                                         self.load_projects_list()
                                                         ])
-        self.ui.load_back_button.clicked.connect(lambda: self.ui.main_body_stack.setCurrentWidget(self.ui.home_page))
+        self.ui.load_back_button.clicked.connect(lambda: self.go_back())
+
+        self.ui.pushButton_12.clicked.connect(lambda: self.navigate_to(self.ui.about_page))
 
         #########################
-
-        ### Settings page buttons ##############
+        ### Settings page buttons 
         self.ui.appTheme_combobox.currentIndexChanged.connect(self.updateAppTheme)
         self.ui.fullscreen_checkbox.stateChanged.connect(self.setFullscreenMode)
         self.ui.dyslexicfont_checkbox.stateChanged.connect(self.setDyslexicFont)
+        self.ui.pushButton_2.clicked.connect(lambda: self.go_back())
+
+        
 
         #######################
+        ### About page buttons 
+        self.ui.about_back_button.clicked.connect(self.go_back)
+        ##########################
 
 
         def moveWindow(e):
@@ -311,7 +323,6 @@ class MainWindow(QMainWindow):
         self.canv = MatplotlibCanvas(self, width=8, height=4, dpi=100)
         toolbar = CustomNavigationToolbar(self.canv, self)  # Add navigation toolbar
 
-        print(self.df)
         # Check if DataFrame exists and isn't empty
         if not hasattr(self, 'df') or self.df.empty:
             self.get_plot_data()
@@ -706,8 +717,32 @@ class MainWindow(QMainWindow):
         else:
             self.ui.taskbar_body_container.setCurrentIndex(0)   #homepage taskbar
 
+    def navigate_to(self, new_widget):
+        """Centralized navigation function using QStackedWidget's built-in features"""
+        current = self.ui.main_body_stack.currentWidget()
+        if current != new_widget:
+            self.navigation_stack.append(current)
+            self.ui.main_body_stack.setCurrentWidget(new_widget)
+            
+            # Special handling for taskbar switching if needed
+            if new_widget == self.ui.project_homepage:
+                self.switchActiveTaskbar()
+
+    def go_back(self):
+        """Go back to the previous page using navigation stack"""
+        if self.navigation_stack:
+            previous_widget = self.navigation_stack.pop()
+            self.ui.main_body_stack.setCurrentWidget(previous_widget)
+            
+            # Special handling for taskbar switching if needed
+            if previous_widget == self.ui.project_homepage:
+                self.switchActiveTaskbar()
+        else:
+            # If no history, go home
+            self.returnHome()
+
     def handle_project_creation(self):
-        project_name = self.ui.textEdit.toPlainText().strip()
+        project_name = self.ui.input_project_name.toPlainText().strip()
         project_description = self.ui.plainTextEdit.toPlainText().strip()
         
         success = ProjectManager.create_new_project(
@@ -970,9 +1005,11 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Success", "Project updated successfully")
 
     def returnHome(self):
+        self.navigation_history = []
+        self.current_page = self.ui.home_page
         self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)
         self.switchActiveTaskbar()
-
+        
     def updateToolboxIcons(self, toolbox, index):
         for i in range(toolbox.count()):
             if i == index:

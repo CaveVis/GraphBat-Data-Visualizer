@@ -178,14 +178,18 @@ class ProjectManager:
         if os.path.exists(project_folder):
             cls.show_error_message(parent, f"A project named '{project_name}' exists, try a different name")
             return False
+        
+        current_time = datetime.datetime.now()
+        formatted_time = current_time.strftime("%B %d, %Y, %I:%M %p")
 
         try:
             # Create project info
             project_data = {
                 "project_name": project_name,
                 "project_description": project_description,
-                "created_at": datetime.datetime.now().isoformat(),
-                "last_modified": datetime.datetime.now().isoformat()
+                "created_at": formatted_time,
+                "last_modified": formatted_time
+
             }
 
             os.makedirs("Projects", exist_ok=True)
