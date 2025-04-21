@@ -1,151 +1,84 @@
-# In your ui/src/draw_tool.py
-
-# --- Imports ---
-from PySide6.QtWidgets import QWidget, QSizePolicy # Make sure QSizePolicy is imported
+from PySide6.QtWidgets import QWidget, QSizePolicy
 from PySide6.QtGui import QPainter, QColor, QMouseEvent, QImage, QPixmap
-from PySide6.QtCore import Qt, QRect, QSize, QPointF # Make sure QSize, QPointF are imported
+from PySide6.QtCore import Qt, QRect, QSize, QPoint, QPointF 
 
 import numpy as np
-
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
 alp = QColor.fromRgbF(0.0, 0.0, 0.0, 0.0)
-black = QColor.fromRgbF(0.0, 0.0, 0.0, 1.0)
+red = QColor.fromRgbF(1.0, 0.0, 0.0, 0.5)
 
 class PaintGrid(QWidget):
     def __init__(self, brush_size=5, background=None, parent=None):
-        super().__init__(parent)
+        fig = FigureCanvasQTAgg()
+        super().__init__(fig)
+        self.setParent(parent)
+
+        self.background_pixmap = QPixmap(background) if background else None
+        self.scaled_pixmap = None
         self.brush_size = brush_size
         self.is_drawing = False
         self.draw_value = 1
 
-        self.background_pixmap = None
-        self.image = None
-        self._original_image_size = QSize(500, 500) # Default/fallback size
+        self.drawing_image = QImage(self.background_pixmap.size(), QImage.Format_ARGB32)
+        self.drawing_image.fill(Qt.transparent)
 
-        # --- Load background and determine base size ---
-        if background:
-            temp_pixmap = QPixmap(background)
-            if not temp_pixmap.isNull():
-                self.background_pixmap = temp_pixmap
-                self._original_image_size = self.background_pixmap.size() # Store original size
-            else:
-                print(f"Warning: Failed to load background image: {background}")
-                # Keep default _original_image_size
+        self._image_rect = QRect()
 
-        # --- Setup the drawing canvas based on original size ---
-        self._setup_canvas(self._original_image_size)
+    def resizeEvent(self, event):
+        if self.background_pixmap:
+            # Maintain aspect ratio
+            self.scaled_pixmap = self.background_pixmap.scaled(
+                self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+            )
 
-        # --- Set Size Policy ---
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.setMinimumSize(100, 100) # Prevent collapsing
-        self.updateGeometry()
-
-    def _setup_canvas(self, size):
-        """Initializes or reinitializes the drawing QImage."""
-        if size.isEmpty() or not size.isValid():
-            size = QSize(100, 100) # Ensure a valid size
-        self.image = QImage(size, QImage.Format.Format_ARGB32_Premultiplied)
-        self.image.fill(alp)
-
-    def sizeCheck(self):
-        if self._original_image_size.isValid() and self._original_image_size.width() > 0 and self._original_image_size.height() > 0:
-             return self._original_image_size
-        else:
-             return QSize(500, 500) 
-
+            # Center the image
+            x = (self.width() - self.scaled_pixmap.width()) // 2
+            y = (self.height() - self.scaled_pixmap.height()) // 2
+            self._image_rect = QRect(x, y, self.scaled_pixmap.width(), self.scaled_pixmap.height())
+        self.update()
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        widget_rect = self.rect()
-        target_rect = self._get_target_rect(widget_rect)
+        if self.scaled_pixmap:
+            painter.drawPixmap(self._image_rect, self.scaled_pixmap)
+        # Draw on top
+        painter.drawImage(self._image_rect, self.drawing_image)
+        painter.end()
 
-        if self.background_pixmap:
-             painter.drawPixmap(target_rect, self.background_pixmap)
-        if self.image:
-             painter.drawImage(target_rect, self.image)
-
-    def _get_target_rect(self, container_rect):
-        """Calculates the centered rectangle within container_rect to draw the content."""
-        original_size = self.sizeHint() # Use sizeHint to get the base size
-        if original_size.isEmpty() or original_size.width() <= 0 or original_size.height() <= 0:
-             return container_rect # Fallback if size is invalid
-
-        aspect_ratio = original_size.width() / original_size.height()
-        container_ratio = container_rect.width() / container_rect.height()
-
-        target_size = QSize()
-        if container_ratio > aspect_ratio:
-            target_size.setHeight(container_rect.height())
-            target_size.setWidth(int(container_rect.height() * aspect_ratio))
-        else:
-            target_size.setWidth(container_rect.width())
-            target_size.setHeight(int(container_rect.width() / aspect_ratio))
-
-        x_offset = (container_rect.width() - target_size.width()) / 2
-        y_offset = (container_rect.height() - target_size.height()) / 2
-
-        return QRect(int(container_rect.left() + x_offset),
-                     int(container_rect.top() + y_offset),
-                     max(1, target_size.width()),   # Ensure width >= 1
-                     max(1, target_size.height())) # Ensure height >= 1
-
-
-    def _map_widget_to_image(self, widget_pos: QPointF):
-        if not self.image or self.image.isNull(): return None
-        original_size = self.sizeHint() # Use base size for mapping
-        if original_size.isEmpty() or original_size.width() <= 0 or original_size.height() <= 0: return None
-
-
-        widget_rect = self.rect()
-        target_rect = self._get_target_rect(widget_rect)
-
-        if not target_rect.contains(widget_pos.toPoint()) or target_rect.width() <= 0 or target_rect.height() <= 0: return None
-
-        relative_x = widget_pos.x() - target_rect.left()
-        relative_y = widget_pos.y() - target_rect.top()
-
-        scale_x = original_size.width() / target_rect.width()
-        scale_y = original_size.height() / target_rect.height()
-
-        image_x = relative_x * scale_x
-        image_y = relative_y * scale_y
-
-        image_x = max(0, min(image_x, self.image.width() - 1))
-        image_y = max(0, min(image_y, self.image.height() - 1))
-
-        return QPointF(image_x, image_y)
-
-    def mousePressEvent(self, event: QMouseEvent):
-        image_pos = self._map_widget_to_image(event.position())
-        if image_pos:
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton and self._image_rect.contains(event.pos()):
             self.is_drawing = True
-            self.apply_brush(image_pos)
+            self._draw_at(event.pos())
 
-    def mouseMoveEvent(self, event: QMouseEvent):
-        if self.is_drawing:
-            image_pos = self._map_widget_to_image(event.position())
-            if image_pos:
-                self.apply_brush(image_pos)
+    def mouseMoveEvent(self, event):
+        if self.is_drawing and self._image_rect.contains(event.pos()):
+            self._draw_at(event.pos())
 
-    def mouseReleaseEvent(self, event: QMouseEvent):
+    def mouseReleaseEvent(self, event):
         self.is_drawing = False
 
-    def apply_brush(self, image_pos: QPointF):
-        if not self.image or self.image.isNull(): return
-        color = black if self.draw_value == 1 else alp
-        painter = QPainter(self.image)
-        painter.setPen(Qt.PenStyle.NoPen)
+    def _draw_at(self, pos):
+        # Convert widget pos to image-relative pos
+        x = (pos.x() - self._image_rect.x()) * self.background_pixmap.width() / self._image_rect.width()
+        y = (pos.y() - self._image_rect.y()) * self.background_pixmap.height() / self._image_rect.height()
+
+        painter = QPainter(self.drawing_image)
+        # Set composition mode to Source to *overwrite* pixels instead of blending
+        painter.setCompositionMode(QPainter.CompositionMode_Source)
+        color = red if self.draw_value == 1 else Qt.transparent
         painter.setBrush(color)
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Source)
-        brush_radius = self.brush_size / 2.0
-        painter.drawEllipse(image_pos, brush_radius, brush_radius)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(color)
+        painter.drawEllipse(QPoint(int(x), int(y)), self.brush_size, self.brush_size)
         painter.end()
         self.update()
 
+
     def clear_grid(self):
-        if self.image:
-            self.image.fill(alp)
+        if self.drawing_image:
+            self.drawing_image.fill(Qt.transparent)
             self.update()
+
 
     def set_brush_size(self, size):
         self.brush_size = max(1, size)
@@ -154,42 +87,42 @@ class PaintGrid(QWidget):
         self.draw_value = 0 if self.draw_value == 1 else 1
 
     def get_mask(self):
-        if not self.image or self.image.isNull(): return None
-        mask = np.zeros((self.image.height(), self.image.width()), dtype=np.uint8)
-        img_format = self.image.format() # Get format once
+      
+        if not self.drawing_image or self.drawing_image.isNull():
+            return None
 
-        # Use constBits() for read-only access, slightly safer
-        ptr = self.image.constBits()
-        # Important: Ensure the size is correct based on format BITS per pixel, not bytes sometimes
-        bytes_per_pixel = self.image.depth() // 8
-        expected_size = self.image.width() * self.image.height() * bytes_per_pixel
-        ptr.setsize(expected_size) # Set size based on image properties
+        mask = np.zeros((self.drawing_image.height(), self.drawing_image.width()), dtype=np.uint8)
+        img_format = self.drawing_image.format()
+
+        ptr = self.drawing_image.constBits()
+        bytes_per_pixel = self.drawing_image.depth() // 8
+        expected_size = self.drawing_image.width() * self.drawing_image.height() * bytes_per_pixel
+        ptr.setsize(expected_size)
 
         try:
-            arr = np.array(ptr, copy=False).reshape(self.image.height(), self.image.width(), bytes_per_pixel)
+            arr = np.array(ptr, copy=False).reshape(self.drawing_image.height(), self.drawing_image.width(), bytes_per_pixel)
 
-            # Check alpha channel based on format
             alpha_index = -1
             if img_format in (QImage.Format.Format_ARGB32_Premultiplied, QImage.Format.Format_ARGB32):
-                alpha_index = 3 # Assuming BGRA byte order from Qt on many platforms
+                alpha_index = 3  # BGRA
             elif img_format == QImage.Format.Format_RGBA8888:
-                 alpha_index = 3 # Assuming RGBA
-            # Add other formats if needed, e.g., Grayscale8 might use value > 0
+                alpha_index = 3  # RGBA
 
             if alpha_index != -1:
                 painted_mask = arr[:, :, alpha_index] > 0
                 mask[painted_mask] = 1
-            else: # If format doesn't have a clear alpha channel or not handled above
-                 print(f"Using fallback pixel iteration for mask (Format: {img_format})")
-                 for y in range(self.image.height()):
-                     for x in range(self.image.width()):
-                         if QColor(self.image.pixel(x, y)).alpha() > 0:
-                             mask[y, x] = 1
+            else:
+                print(f"Using fallback pixel iteration for mask (Format: {img_format})")
+                for y in range(self.drawing_image.height()):
+                    for x in range(self.drawing_image.width()):
+                        if QColor(self.drawing_image.pixel(x, y)).alpha() > 0:
+                            mask[y, x] = 1
         except Exception as e:
-             print(f"Error processing image buffer for mask: {e}")
-             print("Falling back to pixel iteration for mask.")
-             for y in range(self.image.height()):
-                 for x in range(self.image.width()):
-                     if QColor(self.image.pixel(x, y)).alpha() > 0:
-                          mask[y, x] = 1
+            print(f"Error processing image buffer for mask: {e}")
+            print("Falling back to pixel iteration for mask.")
+            for y in range(self.drawing_image.height()):
+                for x in range(self.drawing_image.width()):
+                    if QColor(self.drawing_image.pixel(x, y)).alpha() > 0:
+                        mask[y, x] = 1
+
         return mask
