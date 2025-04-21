@@ -1,29 +1,25 @@
 # This Python file uses the following encoding: utf-8
 import sys
-import json
-import shutil
-#from PyQt5 import QtWidgets
+import os
+import traceback
+import mplcursors
+import pandas as pd
+import matplotlib
 from PySide6 import QtSvg
 from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QIcon, QFont
 from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget,
                                 QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem,
-                                QLineEdit, QPushButton, QPlainTextEdit, QSizePolicy, QFrame, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem)
+                                QLineEdit, QPushButton, QPlainTextEdit, QSizePolicy, QDateTimeEdit, QFrame, QDialogButtonBox, QMessageBox, QDialog)
 from mainwindow import Ui_mainwindow
-import pandas as pd
-import matplotlib
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
-import os
-import traceback
-import datetime
-import mplcursors
 import src.data_processing.data_processor as data_processor
-from src.data_processing.data_processor import AnomalyDialog, ColumnSelectionDialog, DataProcessor
-import src.project_management.project_manager as project_manager
+from src.data_processing.data_processor import AnomalyDialog
 from src.project_management.project_manager import ProjectManager
 from src.draw_tool import PaintGrid
+
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None,width=5, height = 5, dpi = 120):
@@ -31,6 +27,92 @@ class MatplotlibCanvas(FigureCanvasQTAgg):
         self.axes= f.add_subplot(111)
         super(MatplotlibCanvas,self).__init__(f)
         f.tight_layout(pad=3)
+
+class CustomNavigationToolbar(Navi):
+    def __init__(self, canvas, parent=None):
+        super().__init__(canvas, parent)
+        self.canvas = canvas
+        self.parent = parent  # Reference to MainWindow
+
+        clock_action = self.addAction(self._icon("clock"), "Set time range", self.adjust_time_range)
+        # Get the list of actions in the toolbar
+        actions = self.actions()
+
+        # Remove the action we just added (from the end)
+        self.removeAction(clock_action)
+
+        # Re-insert it at the desired position (e.g., after the 5th standard button)
+        target_index = min(5, len(actions)-1)  # Make sure we don't go out of bounds
+        self.insertAction(actions[target_index], clock_action)
+        
+    def _icon(self, name):
+        """Modified icon loader that checks for custom icons"""
+        if name == "clock":
+            # Load your custom clock icon
+            return QIcon("ui/images/icons/clock.png")
+        return super()._icon(name)
+    
+    def adjust_time_range(self):
+        """Open a dialog to adjust the time range of the graph"""
+        if not hasattr(self.parent, 'df') or self.parent.df.empty:
+            QMessageBox.warning(self.parent, "No Data", "No data available to adjust time range")
+            return
+            
+        # Get current axes and limits
+        ax = self.canvas.figure.axes[0]
+        current_xlim = ax.get_xlim()
+        
+        # Convert matplotlib dates to datetime
+        min_date = matplotlib.dates.num2date(current_xlim[0])
+        max_date = matplotlib.dates.num2date(current_xlim[1])
+        
+        # Create a dialog for time range selection
+        dialog = QDialog(self.parent)
+        dialog.setWindowTitle("Adjust Time Range")
+        layout = QVBoxLayout()
+        
+        # Min date selector
+        min_layout = QHBoxLayout()
+        min_layout.addWidget(QLabel("Start Date:"))
+        min_date_edit = QDateTimeEdit(min_date)
+        min_date_edit.setCalendarPopup(True)
+        min_date_edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        min_layout.addWidget(min_date_edit)
+        layout.addLayout(min_layout)
+        
+        # Max date selector
+        max_layout = QHBoxLayout()
+        max_layout.addWidget(QLabel("End Date:"))
+        max_date_edit = QDateTimeEdit(max_date)
+        max_date_edit.setCalendarPopup(True)
+        max_date_edit.setDisplayFormat("yyyy-MM-dd HH:mm:ss")
+        max_layout.addWidget(max_date_edit)
+        layout.addLayout(max_layout)
+        
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(dialog.accept)
+        button_box.rejected.connect(dialog.reject)
+        layout.addWidget(button_box)
+        
+        dialog.setLayout(layout)
+        
+        if dialog.exec() == QDialog.Accepted:
+            try:
+                # Get new dates from the dialog
+                new_min = min_date_edit.dateTime().toPython()
+                new_max = max_date_edit.dateTime().toPython()
+                
+                # Convert to matplotlib dates
+                new_min_num = matplotlib.dates.date2num(new_min)
+                new_max_num = matplotlib.dates.date2num(new_max)
+                
+                # Set new limits
+                ax.set_xlim(new_min_num, new_max_num)
+                self.canvas.draw()
+                
+            except Exception as e:
+                QMessageBox.warning(self.parent, "Error", f"Failed to adjust time range: {str(e)}")
 
 class MainWindow(QMainWindow):
     def __init__(self, /):
@@ -227,7 +309,7 @@ class MainWindow(QMainWindow):
 
         # Create a new canvas and navigation toolbar
         self.canv = MatplotlibCanvas(self, width=8, height=4, dpi=100)
-        toolbar = Navi(self.canv, self)  # Add navigation toolbar
+        toolbar = CustomNavigationToolbar(self.canv, self)  # Add navigation toolbar
 
         print(self.df)
         # Check if DataFrame exists and isn't empty
