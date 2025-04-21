@@ -143,7 +143,7 @@ QCheckBox
 color: #FFFFFF
 }
 
-QFrame
+QFrame, QScrollArea
 {
 background: transparent;
 }
@@ -169,4 +169,15 @@ padding: 2px;
 QComboBox:down-arrow
 {
 color: #AD6300;
+}
+
+QMessageBox QLabel
+{
+color: #000000;
+}
+
+QTextEdit, QPlainTextEdit
+{
+color: #000000;
+background-color: #FFFFFF;
 }
