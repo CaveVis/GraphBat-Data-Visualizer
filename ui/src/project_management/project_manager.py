@@ -222,6 +222,12 @@ class ProjectManager:
                 folder_path = os.path.join(project_folder, 'datafiles', folder)
                 os.makedirs(folder_path, exist_ok=True)
 
+            #Create subfolder in preprocessed_data and processed_data
+            data_subfolders = ['preprocessed_data', 'processed_data']
+            for folder in data_subfolders:
+                folder_path = os.path.join(project_folder, 'datafiles', folder, 'merged_dataset')
+                os.makedirs(folder_path, exist_ok=True)
+            
             # Save project info
             json_file_path = os.path.join(project_folder, "project_info.json")
             with open(json_file_path, 'w', encoding='utf-8') as f:

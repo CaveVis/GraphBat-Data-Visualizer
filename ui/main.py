@@ -148,6 +148,10 @@ class MainWindow(QMainWindow):
         self.font5.setPointSize(11)
         self.font5.setItalic(True)
 
+        self.font3 = QFont()
+        self.font3.setFamilies([u"Verdana"])
+        self.font3.setPointSize(8)
+
         ### Load existing user preferences ###
         self.app_settings = QSettings("GraphBat", "userPrefs")
         #Theme
@@ -342,7 +346,7 @@ class MainWindow(QMainWindow):
 
         base_data_dir = os.path.join("Projects", project_name, "datafiles")
         premerge_data_dir = os.path.join(base_data_dir, "processed_data")
-        merged_data_dir = os.path.join(base_data_dir, "processed_data")
+        merged_data_dir = os.path.join(base_data_dir,"processed_data", "merged_dataset")
         
         #Clear the axes
         self.canv.axes.cla()
@@ -835,6 +839,7 @@ class MainWindow(QMainWindow):
             data_dir = os.path.join(base_data_dir, "raw_data")
             viz_dir = os.path.join(base_data_dir, "images")
             data_lst = os.listdir(data_dir)
+            print(data_lst)
             viz_lst = os.listdir(viz_dir)
             attached_file_count = len(data_lst)
             attached_viz_count = len(viz_lst)
@@ -917,6 +922,27 @@ class MainWindow(QMainWindow):
             self.ui.label_74.setText(project_name)
             #Set Project Name in Project's Header
             self.ui.label_76.setText(project_name)
+
+            base_data_dir = os.path.join("Projects", project_name, "datafiles")
+            data_dir = os.path.join(base_data_dir, "processed_data")
+            viz_dir = os.path.join(base_data_dir, "images")
+            data_lst = os.listdir(data_dir)
+            viz_lst = os.listdir(viz_dir)
+            #Set up QLabels in dataset_list in project taskbar
+            for element in data_lst:
+                label = QLabel(element)
+                label.setFont(self.font3)
+                label.setWordWrap(True)
+                self.ui.verticalLayout_26.addWidget(label)
+
+            #Set up QLabels in map_list in project taskbar
+            for element in viz_lst:
+                label = QLabel(element)
+                label.setFont(self.font3)
+                label.setWordWrap(True)
+
+                self.ui.verticalLayout_35.addWidget(label)
+
             # Switch to the project home page
             ProjectManager.set_project(project_name)
             self.navigate_to(self.ui.project_homepage)

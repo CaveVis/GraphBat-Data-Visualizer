@@ -276,7 +276,7 @@ class DataProcessor:
             # Project mode - load preprocessed data
             project_name = project['project_name']
             base_data_dir = os.path.join("Projects", project_name, "datafiles", "preprocessed_data")
-            merged_filepath = os.path.join(base_data_dir, "preprocessed_merged_data.csv")
+            merged_filepath = os.path.join(base_data_dir, "merged_dataset","preprocessed_merged_data.csv")
             
             try:
                 # Load the merged dataframe
@@ -322,7 +322,7 @@ class DataProcessor:
         project_name = ProjectManager.get_project()
         base_data_dir = os.path.join("Projects", project_name, "datafiles")
         premerge_data_dir = os.path.join(base_data_dir, "preprocessed_data")
-        merged_data_dir = os.path.join(base_data_dir, "preprocessed_data")
+        merged_data_dir = os.path.join(base_data_dir, "preprocessed_data", "merged_dataset")
 
         #First pass: Read and preprocess all files
         merged_dfs = []
