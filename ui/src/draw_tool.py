@@ -18,7 +18,8 @@ class DrawingCanvas(QWidget):
         self.parent_dialog = parent # Reference to the main dialog
 
         self.background_pixmap = background_pixmap if background_pixmap else QPixmap()
-        self.scaled_pixmap = self.background_pixmap # Initially same size
+        self.scaled_pixmap = QPixmap()
+
         self.drawing_image = QImage(self.background_pixmap.size(), QImage.Format_ARGB32)
         self.drawing_image.fill(COLOR_TRANSPARENT)
 
@@ -28,25 +29,32 @@ class DrawingCanvas(QWidget):
         # Ensure the canvas can receive mouse events
         self.setMouseTracking(True)
         # Set a minimum size hint based on the image
-        if not self.background_pixmap.isNull():
-             self.setMinimumSize(self.background_pixmap.size() / 2) # Example minimum size
+        self.max_canvas_size = QSize(800, 600)  # Cap canvas size to 800x600 or anything reasonable
+
+      
 
 
     def resizeEvent(self, event):
         if not self.background_pixmap.isNull():
-            # Scale pixmap to fit canvas size while maintaining aspect ratio
+            screen_size = QApplication.primaryScreen().availableSize()
+            self.max_canvas_size = screen_size * 0.8  # 80% of screen size
+
+            # Limit the canvas size to max_canvas_size while keeping aspect ratio
+            new_size = self.size().boundedTo(self.max_canvas_size)
+
+            # Scale the background pixmap
             self.scaled_pixmap = self.background_pixmap.scaled(
-                self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation
+                new_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
             )
 
-            # Center the scaled pixmap within the canvas widget
+            # Center the image within the widget
             x = (self.width() - self.scaled_pixmap.width()) // 2
             y = (self.height() - self.scaled_pixmap.height()) // 2
             self._image_rect = QRect(x, y, self.scaled_pixmap.width(), self.scaled_pixmap.height())
         else:
-             self._image_rect = self.rect() # Fill whole area if no background
+            self._image_rect = self.rect()  # Fallback to full widget rect
 
-        self.update() # Trigger repaint
+        self.update()
         super().resizeEvent(event)
 
     def paintEvent(self, event):
@@ -195,16 +203,32 @@ class PaintGrid(QDialog):
 
         # Set Initial Dialog Size 
         if not background_pixmap.isNull():
-             # Set size based on image + padding for controls
-             img_w = background_pixmap.width()
-             img_h = background_pixmap.height()
-             # Make initial size reasonable, e.g., max 800x600 display for image part
-             display_w = min(img_w, 800)
-             display_h = min(img_h, 600)
-             padding_h = 80 # Approximate height needed for controls + margins
-             self.resize(max(display_w, 400), display_h + padding_h) # Ensure minimum width
+            screen_size = QApplication.primaryScreen().availableSize()
+            screen_padding = QSize(100, 150)  # Account for window chrome + controls
+            available_size = screen_size - screen_padding
+
+            # Preserve image aspect ratio
+            image_size = background_pixmap.size()
+            scaled_size = image_size.scaled(available_size, Qt.KeepAspectRatio)
+
+            # Resize the window with padding for controls
+            self.resize(scaled_size.width(), scaled_size.height() + 80)
         else:
-             self.resize(600, 450) # Default size if no image
+            self.resize(600, 450)
+
+    def map_widget_to_image(self, widget_pos: QPoint) -> QPoint | None:
+        if not self._image_rect.contains(widget_pos):
+            return None  # Click outside image
+        if self._image_rect.width() == 0 or self._image_rect.height() == 0:
+            return None
+
+        relative_x = widget_pos.x() - self._image_rect.x()
+        relative_y = widget_pos.y() - self._image_rect.y()
+
+        original_x = (relative_x * self.background_pixmap.width()) / self._image_rect.width()
+        original_y = (relative_y * self.background_pixmap.height()) / self._image_rect.height()
+
+        return QPoint(int(original_x), int(original_y))
 
     def _update_brush_size(self, text):
         try:
