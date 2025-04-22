@@ -464,7 +464,7 @@ class Ui_mainwindow(object):
         self.project_taskbar_toolbox.setStyleSheet(u"")
         self.toolbox_project = QWidget()
         self.toolbox_project.setObjectName(u"toolbox_project")
-        self.toolbox_project.setGeometry(QRect(0, 0, 198, 84))
+        self.toolbox_project.setGeometry(QRect(0, 0, 128, 84))
         self.verticalLayout_56 = QVBoxLayout(self.toolbox_project)
         self.verticalLayout_56.setObjectName(u"verticalLayout_56")
         self.verticalLayout_56.setContentsMargins(6, 0, 6, 0)
@@ -498,7 +498,7 @@ class Ui_mainwindow(object):
         self.project_taskbar_toolbox.addItem(self.toolbox_project, icon9, u"Project")
         self.toolbox_graphs = QWidget()
         self.toolbox_graphs.setObjectName(u"toolbox_graphs")
-        self.toolbox_graphs.setGeometry(QRect(0, 0, 198, 106))
+        self.toolbox_graphs.setGeometry(QRect(0, 0, 84, 106))
         self.toolbox_graphs.setStyleSheet(u"")
         self.verticalLayout_58 = QVBoxLayout(self.toolbox_graphs)
         self.verticalLayout_58.setSpacing(0)
@@ -517,7 +517,7 @@ class Ui_mainwindow(object):
         self.toolbox_graphlist.setStyleSheet(u"background: transparent")
         self.toolbox_datasets = QWidget()
         self.toolbox_datasets.setObjectName(u"toolbox_datasets")
-        self.toolbox_datasets.setGeometry(QRect(0, 0, 183, 46))
+        self.toolbox_datasets.setGeometry(QRect(0, 0, 69, 46))
         self.toolbox_datasets.setStyleSheet(u"background: transparent")
         self.verticalLayout_25 = QVBoxLayout(self.toolbox_datasets)
         self.verticalLayout_25.setSpacing(0)
@@ -529,7 +529,7 @@ class Ui_mainwindow(object):
         self.scrollArea_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 183, 46))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 69, 46))
         self.scrollAreaWidgetContents_2.setStyleSheet(u"background: transparent")
         self.verticalLayout_27 = QVBoxLayout(self.scrollAreaWidgetContents_2)
         self.verticalLayout_27.setSpacing(0)
@@ -553,7 +553,7 @@ class Ui_mainwindow(object):
         self.toolbox_graphlist.addItem(self.toolbox_datasets, icon9, u"Datasets")
         self.toolbox_maps = QWidget()
         self.toolbox_maps.setObjectName(u"toolbox_maps")
-        self.toolbox_maps.setGeometry(QRect(0, 0, 183, 46))
+        self.toolbox_maps.setGeometry(QRect(0, 0, 86, 46))
         self.toolbox_maps.setStyleSheet(u"background: transparent")
         self.verticalLayout_36 = QVBoxLayout(self.toolbox_maps)
         self.verticalLayout_36.setSpacing(0)
@@ -565,7 +565,7 @@ class Ui_mainwindow(object):
         self.scrollArea_5.setWidgetResizable(True)
         self.scrollAreaWidgetContents_5 = QWidget()
         self.scrollAreaWidgetContents_5.setObjectName(u"scrollAreaWidgetContents_5")
-        self.scrollAreaWidgetContents_5.setGeometry(QRect(0, 0, 183, 46))
+        self.scrollAreaWidgetContents_5.setGeometry(QRect(0, 0, 86, 46))
         self.scrollAreaWidgetContents_5.setStyleSheet(u"background: transparent")
         self.verticalLayout_35 = QVBoxLayout(self.scrollAreaWidgetContents_5)
         self.verticalLayout_35.setSpacing(0)
@@ -596,7 +596,7 @@ class Ui_mainwindow(object):
         self.project_taskbar_toolbox.addItem(self.toolbox_graphs, icon9, u"Data")
         self.toolbox_other = QWidget()
         self.toolbox_other.setObjectName(u"toolbox_other")
-        self.toolbox_other.setGeometry(QRect(0, 0, 198, 54))
+        self.toolbox_other.setGeometry(QRect(0, 0, 132, 54))
         self.verticalLayout_57 = QVBoxLayout(self.toolbox_other)
         self.verticalLayout_57.setSpacing(0)
         self.verticalLayout_57.setObjectName(u"verticalLayout_57")
@@ -816,7 +816,7 @@ class Ui_mainwindow(object):
         self.create_body_scroll_area.setWidgetResizable(True)
         self.create_project_body = QWidget()
         self.create_project_body.setObjectName(u"create_project_body")
-        self.create_project_body.setGeometry(QRect(0, 0, 724, 420))
+        self.create_project_body.setGeometry(QRect(0, 0, 259, 420))
         self.create_project_body.setStyleSheet(u"")
         self.verticalLayout_13 = QVBoxLayout(self.create_project_body)
         self.verticalLayout_13.setSpacing(0)
@@ -1189,390 +1189,12 @@ class Ui_mainwindow(object):
         self.load_scroll_area.setWidgetResizable(True)
         self.load_body = QWidget()
         self.load_body.setObjectName(u"load_body")
-        self.load_body.setGeometry(QRect(0, 0, 724, 618))
+        self.load_body.setGeometry(QRect(0, 0, 738, 389))
         self.load_body.setStyleSheet(u"")
         self.verticalLayout_18 = QVBoxLayout(self.load_body)
         self.verticalLayout_18.setSpacing(15)
         self.verticalLayout_18.setObjectName(u"verticalLayout_18")
         self.verticalLayout_18.setContentsMargins(6, 6, 0, -1)
-        self.example_loadfile_container = QFrame(self.load_body)
-        self.example_loadfile_container.setObjectName(u"example_loadfile_container")
-        self.example_loadfile_container.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_container.setFrameShadow(QFrame.Shadow.Raised)
-        self.horizontalLayout_22 = QHBoxLayout(self.example_loadfile_container)
-        self.horizontalLayout_22.setSpacing(0)
-        self.horizontalLayout_22.setObjectName(u"horizontalLayout_22")
-        self.horizontalLayout_22.setContentsMargins(0, 0, 0, 0)
-        self.example_loadfile_info = QFrame(self.example_loadfile_container)
-        self.example_loadfile_info.setObjectName(u"example_loadfile_info")
-        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy7.setHorizontalStretch(0)
-        sizePolicy7.setVerticalStretch(0)
-        sizePolicy7.setHeightForWidth(self.example_loadfile_info.sizePolicy().hasHeightForWidth())
-        self.example_loadfile_info.setSizePolicy(sizePolicy7)
-        self.example_loadfile_info.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_info.setFrameShadow(QFrame.Shadow.Raised)
-
-
-
-
-
-        self.horizontalLayout_22.addWidget(self.example_loadfile_info)
-
-        self.example_loadfile_buttons = QFrame(self.example_loadfile_container)
-        self.example_loadfile_buttons.setObjectName(u"example_loadfile_buttons")
-        self.example_loadfile_buttons.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_buttons.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_20 = QVBoxLayout(self.example_loadfile_buttons)
-        self.verticalLayout_20.setSpacing(6)
-        self.verticalLayout_20.setObjectName(u"verticalLayout_20")
-        self.verticalLayout_20.setContentsMargins(0, 0, 0, 0)
-
-
-
-        self.horizontalLayout_22.addWidget(self.example_loadfile_buttons)
-
-
-        self.verticalLayout_18.addWidget(self.example_loadfile_container)
-
-        self.example_loadfile_container_4 = QFrame(self.load_body)
-        self.example_loadfile_container_4.setObjectName(u"example_loadfile_container_4")
-        self.example_loadfile_container_4.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_container_4.setFrameShadow(QFrame.Shadow.Raised)
-        self.horizontalLayout_35 = QHBoxLayout(self.example_loadfile_container_4)
-        self.horizontalLayout_35.setSpacing(0)
-        self.horizontalLayout_35.setObjectName(u"horizontalLayout_35")
-        self.horizontalLayout_35.setContentsMargins(0, 0, 0, 0)
-        self.example_loadfile_info_14 = QFrame(self.example_loadfile_container_4)
-        self.example_loadfile_info_14.setObjectName(u"example_loadfile_info_14")
-        sizePolicy7.setHeightForWidth(self.example_loadfile_info_14.sizePolicy().hasHeightForWidth())
-        self.example_loadfile_info_14.setSizePolicy(sizePolicy7)
-        self.example_loadfile_info_14.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_info_14.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_45 = QVBoxLayout(self.example_loadfile_info_14)
-        self.verticalLayout_45.setSpacing(0)
-        self.verticalLayout_45.setObjectName(u"verticalLayout_45")
-        self.verticalLayout_45.setContentsMargins(0, 0, 0, 0)
-        self.label_65 = QLabel(self.example_loadfile_info_14)
-        self.label_65.setObjectName(u"label_65")
-        self.label_65.setFont(font2)
-
-        self.verticalLayout_45.addWidget(self.label_65)
-
-        self.label_66 = QLabel(self.example_loadfile_info_14)
-        self.label_66.setObjectName(u"label_66")
-
-        self.verticalLayout_45.addWidget(self.label_66)
-
-        self.label_67 = QLabel(self.example_loadfile_info_14)
-        self.label_67.setObjectName(u"label_67")
-        font5 = QFont()
-        font5.setPointSize(14)
-        font5.setBold(True)
-        self.label_67.setFont(font5)
-
-        self.verticalLayout_45.addWidget(self.label_67)
-
-
-        self.horizontalLayout_35.addWidget(self.example_loadfile_info_14)
-
-        self.example_loadfile_buttons_14 = QFrame(self.example_loadfile_container_4)
-        self.example_loadfile_buttons_14.setObjectName(u"example_loadfile_buttons_14")
-        self.example_loadfile_buttons_14.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_buttons_14.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_46 = QVBoxLayout(self.example_loadfile_buttons_14)
-        self.verticalLayout_46.setSpacing(6)
-        self.verticalLayout_46.setObjectName(u"verticalLayout_46")
-        self.verticalLayout_46.setContentsMargins(0, 0, 0, 0)
-        self.pushButton_44 = QPushButton(self.example_loadfile_buttons_14)
-        self.pushButton_44.setObjectName(u"pushButton_44")
-
-        self.verticalLayout_46.addWidget(self.pushButton_44)
-
-        self.pushButton_45 = QPushButton(self.example_loadfile_buttons_14)
-        self.pushButton_45.setObjectName(u"pushButton_45")
-
-        self.verticalLayout_46.addWidget(self.pushButton_45)
-
-        self.pushButton_46 = QPushButton(self.example_loadfile_buttons_14)
-        self.pushButton_46.setObjectName(u"pushButton_46")
-
-        self.verticalLayout_46.addWidget(self.pushButton_46)
-
-
-        self.horizontalLayout_35.addWidget(self.example_loadfile_buttons_14)
-
-
-        self.verticalLayout_18.addWidget(self.example_loadfile_container_4)
-
-        self.example_loadfile_container_6 = QFrame(self.load_body)
-        self.example_loadfile_container_6.setObjectName(u"example_loadfile_container_6")
-        self.example_loadfile_container_6.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_container_6.setFrameShadow(QFrame.Shadow.Raised)
-        self.horizontalLayout_37 = QHBoxLayout(self.example_loadfile_container_6)
-        self.horizontalLayout_37.setSpacing(0)
-        self.horizontalLayout_37.setObjectName(u"horizontalLayout_37")
-        self.horizontalLayout_37.setContentsMargins(0, 0, 0, 0)
-        self.example_loadfile_info_16 = QFrame(self.example_loadfile_container_6)
-        self.example_loadfile_info_16.setObjectName(u"example_loadfile_info_16")
-        sizePolicy7.setHeightForWidth(self.example_loadfile_info_16.sizePolicy().hasHeightForWidth())
-        self.example_loadfile_info_16.setSizePolicy(sizePolicy7)
-        self.example_loadfile_info_16.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_info_16.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_49 = QVBoxLayout(self.example_loadfile_info_16)
-        self.verticalLayout_49.setSpacing(0)
-        self.verticalLayout_49.setObjectName(u"verticalLayout_49")
-        self.verticalLayout_49.setContentsMargins(0, 0, 0, 0)
-        self.label_71 = QLabel(self.example_loadfile_info_16)
-        self.label_71.setObjectName(u"label_71")
-        self.label_71.setFont(font2)
-
-        self.verticalLayout_49.addWidget(self.label_71)
-
-        self.label_72 = QLabel(self.example_loadfile_info_16)
-        self.label_72.setObjectName(u"label_72")
-
-        self.verticalLayout_49.addWidget(self.label_72)
-
-        self.label_73 = QLabel(self.example_loadfile_info_16)
-        self.label_73.setObjectName(u"label_73")
-        self.label_73.setFont(font5)
-
-        self.verticalLayout_49.addWidget(self.label_73)
-
-
-        self.horizontalLayout_37.addWidget(self.example_loadfile_info_16)
-
-        self.example_loadfile_buttons_16 = QFrame(self.example_loadfile_container_6)
-        self.example_loadfile_buttons_16.setObjectName(u"example_loadfile_buttons_16")
-        self.example_loadfile_buttons_16.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_buttons_16.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_50 = QVBoxLayout(self.example_loadfile_buttons_16)
-        self.verticalLayout_50.setSpacing(6)
-        self.verticalLayout_50.setObjectName(u"verticalLayout_50")
-        self.verticalLayout_50.setContentsMargins(0, 0, 0, 0)
-        self.pushButton_50 = QPushButton(self.example_loadfile_buttons_16)
-        self.pushButton_50.setObjectName(u"pushButton_50")
-
-        self.verticalLayout_50.addWidget(self.pushButton_50)
-
-        self.pushButton_51 = QPushButton(self.example_loadfile_buttons_16)
-        self.pushButton_51.setObjectName(u"pushButton_51")
-
-        self.verticalLayout_50.addWidget(self.pushButton_51)
-
-        self.pushButton_52 = QPushButton(self.example_loadfile_buttons_16)
-        self.pushButton_52.setObjectName(u"pushButton_52")
-
-        self.verticalLayout_50.addWidget(self.pushButton_52)
-
-
-        self.horizontalLayout_37.addWidget(self.example_loadfile_buttons_16)
-
-
-        self.verticalLayout_18.addWidget(self.example_loadfile_container_6)
-
-        self.example_loadfile_container_2 = QFrame(self.load_body)
-        self.example_loadfile_container_2.setObjectName(u"example_loadfile_container_2")
-        self.example_loadfile_container_2.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_container_2.setFrameShadow(QFrame.Shadow.Raised)
-        self.horizontalLayout_33 = QHBoxLayout(self.example_loadfile_container_2)
-        self.horizontalLayout_33.setSpacing(0)
-        self.horizontalLayout_33.setObjectName(u"horizontalLayout_33")
-        self.horizontalLayout_33.setContentsMargins(0, 0, 0, 0)
-        self.example_loadfile_info_12 = QFrame(self.example_loadfile_container_2)
-        self.example_loadfile_info_12.setObjectName(u"example_loadfile_info_12")
-        sizePolicy7.setHeightForWidth(self.example_loadfile_info_12.sizePolicy().hasHeightForWidth())
-        self.example_loadfile_info_12.setSizePolicy(sizePolicy7)
-        self.example_loadfile_info_12.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_info_12.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_41 = QVBoxLayout(self.example_loadfile_info_12)
-        self.verticalLayout_41.setSpacing(0)
-        self.verticalLayout_41.setObjectName(u"verticalLayout_41")
-        self.verticalLayout_41.setContentsMargins(0, 0, 0, 0)
-        self.label_59 = QLabel(self.example_loadfile_info_12)
-        self.label_59.setObjectName(u"label_59")
-        self.label_59.setFont(font2)
-
-        self.verticalLayout_41.addWidget(self.label_59)
-
-        self.label_60 = QLabel(self.example_loadfile_info_12)
-        self.label_60.setObjectName(u"label_60")
-
-        self.verticalLayout_41.addWidget(self.label_60)
-
-        self.label_61 = QLabel(self.example_loadfile_info_12)
-        self.label_61.setObjectName(u"label_61")
-        self.label_61.setFont(font5)
-
-        self.verticalLayout_41.addWidget(self.label_61)
-
-
-        self.horizontalLayout_33.addWidget(self.example_loadfile_info_12)
-
-        self.example_loadfile_buttons_12 = QFrame(self.example_loadfile_container_2)
-        self.example_loadfile_buttons_12.setObjectName(u"example_loadfile_buttons_12")
-        self.example_loadfile_buttons_12.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_buttons_12.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_42 = QVBoxLayout(self.example_loadfile_buttons_12)
-        self.verticalLayout_42.setSpacing(6)
-        self.verticalLayout_42.setObjectName(u"verticalLayout_42")
-        self.verticalLayout_42.setContentsMargins(0, 0, 0, 0)
-        self.pushButton_38 = QPushButton(self.example_loadfile_buttons_12)
-        self.pushButton_38.setObjectName(u"pushButton_38")
-
-        self.verticalLayout_42.addWidget(self.pushButton_38)
-
-        self.pushButton_39 = QPushButton(self.example_loadfile_buttons_12)
-        self.pushButton_39.setObjectName(u"pushButton_39")
-
-        self.verticalLayout_42.addWidget(self.pushButton_39)
-
-        self.pushButton_40 = QPushButton(self.example_loadfile_buttons_12)
-        self.pushButton_40.setObjectName(u"pushButton_40")
-
-        self.verticalLayout_42.addWidget(self.pushButton_40)
-
-
-        self.horizontalLayout_33.addWidget(self.example_loadfile_buttons_12)
-
-
-        self.verticalLayout_18.addWidget(self.example_loadfile_container_2)
-
-        self.example_loadfile_container_3 = QFrame(self.load_body)
-        self.example_loadfile_container_3.setObjectName(u"example_loadfile_container_3")
-        self.example_loadfile_container_3.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_container_3.setFrameShadow(QFrame.Shadow.Raised)
-        self.horizontalLayout_34 = QHBoxLayout(self.example_loadfile_container_3)
-        self.horizontalLayout_34.setSpacing(0)
-        self.horizontalLayout_34.setObjectName(u"horizontalLayout_34")
-        self.horizontalLayout_34.setContentsMargins(0, 0, 0, 0)
-        self.example_loadfile_info_13 = QFrame(self.example_loadfile_container_3)
-        self.example_loadfile_info_13.setObjectName(u"example_loadfile_info_13")
-        sizePolicy7.setHeightForWidth(self.example_loadfile_info_13.sizePolicy().hasHeightForWidth())
-        self.example_loadfile_info_13.setSizePolicy(sizePolicy7)
-        self.example_loadfile_info_13.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_info_13.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_43 = QVBoxLayout(self.example_loadfile_info_13)
-        self.verticalLayout_43.setSpacing(0)
-        self.verticalLayout_43.setObjectName(u"verticalLayout_43")
-        self.verticalLayout_43.setContentsMargins(0, 0, 0, 0)
-        self.label_62 = QLabel(self.example_loadfile_info_13)
-        self.label_62.setObjectName(u"label_62")
-        self.label_62.setFont(font2)
-
-        self.verticalLayout_43.addWidget(self.label_62)
-
-        self.label_63 = QLabel(self.example_loadfile_info_13)
-        self.label_63.setObjectName(u"label_63")
-
-        self.verticalLayout_43.addWidget(self.label_63)
-
-        self.label_64 = QLabel(self.example_loadfile_info_13)
-        self.label_64.setObjectName(u"label_64")
-        self.label_64.setFont(font5)
-
-        self.verticalLayout_43.addWidget(self.label_64)
-
-
-        self.horizontalLayout_34.addWidget(self.example_loadfile_info_13)
-
-        self.example_loadfile_buttons_13 = QFrame(self.example_loadfile_container_3)
-        self.example_loadfile_buttons_13.setObjectName(u"example_loadfile_buttons_13")
-        self.example_loadfile_buttons_13.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_buttons_13.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_44 = QVBoxLayout(self.example_loadfile_buttons_13)
-        self.verticalLayout_44.setSpacing(6)
-        self.verticalLayout_44.setObjectName(u"verticalLayout_44")
-        self.verticalLayout_44.setContentsMargins(0, 0, 0, 0)
-        self.pushButton_41 = QPushButton(self.example_loadfile_buttons_13)
-        self.pushButton_41.setObjectName(u"pushButton_41")
-
-        self.verticalLayout_44.addWidget(self.pushButton_41)
-
-        self.pushButton_42 = QPushButton(self.example_loadfile_buttons_13)
-        self.pushButton_42.setObjectName(u"pushButton_42")
-
-        self.verticalLayout_44.addWidget(self.pushButton_42)
-
-        self.pushButton_43 = QPushButton(self.example_loadfile_buttons_13)
-        self.pushButton_43.setObjectName(u"pushButton_43")
-
-        self.verticalLayout_44.addWidget(self.pushButton_43)
-
-
-        self.horizontalLayout_34.addWidget(self.example_loadfile_buttons_13)
-
-
-        self.verticalLayout_18.addWidget(self.example_loadfile_container_3)
-
-        self.example_loadfile_container_5 = QFrame(self.load_body)
-        self.example_loadfile_container_5.setObjectName(u"example_loadfile_container_5")
-        self.example_loadfile_container_5.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_container_5.setFrameShadow(QFrame.Shadow.Raised)
-        self.horizontalLayout_36 = QHBoxLayout(self.example_loadfile_container_5)
-        self.horizontalLayout_36.setSpacing(0)
-        self.horizontalLayout_36.setObjectName(u"horizontalLayout_36")
-        self.horizontalLayout_36.setContentsMargins(0, 0, 0, 0)
-        self.example_loadfile_info_15 = QFrame(self.example_loadfile_container_5)
-        self.example_loadfile_info_15.setObjectName(u"example_loadfile_info_15")
-        sizePolicy7.setHeightForWidth(self.example_loadfile_info_15.sizePolicy().hasHeightForWidth())
-        self.example_loadfile_info_15.setSizePolicy(sizePolicy7)
-        self.example_loadfile_info_15.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_info_15.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_47 = QVBoxLayout(self.example_loadfile_info_15)
-        self.verticalLayout_47.setSpacing(0)
-        self.verticalLayout_47.setObjectName(u"verticalLayout_47")
-        self.verticalLayout_47.setContentsMargins(0, 0, 0, 0)
-        self.label_68 = QLabel(self.example_loadfile_info_15)
-        self.label_68.setObjectName(u"label_68")
-        self.label_68.setFont(font2)
-
-        self.verticalLayout_47.addWidget(self.label_68)
-
-        self.label_69 = QLabel(self.example_loadfile_info_15)
-        self.label_69.setObjectName(u"label_69")
-
-        self.verticalLayout_47.addWidget(self.label_69)
-
-        self.label_70 = QLabel(self.example_loadfile_info_15)
-        self.label_70.setObjectName(u"label_70")
-        self.label_70.setFont(font5)
-
-        self.verticalLayout_47.addWidget(self.label_70)
-
-
-        self.horizontalLayout_36.addWidget(self.example_loadfile_info_15)
-
-        self.example_loadfile_buttons_15 = QFrame(self.example_loadfile_container_5)
-        self.example_loadfile_buttons_15.setObjectName(u"example_loadfile_buttons_15")
-        self.example_loadfile_buttons_15.setFrameShape(QFrame.Shape.StyledPanel)
-        self.example_loadfile_buttons_15.setFrameShadow(QFrame.Shadow.Raised)
-        self.verticalLayout_48 = QVBoxLayout(self.example_loadfile_buttons_15)
-        self.verticalLayout_48.setSpacing(6)
-        self.verticalLayout_48.setObjectName(u"verticalLayout_48")
-        self.verticalLayout_48.setContentsMargins(0, 0, 0, 0)
-        self.pushButton_47 = QPushButton(self.example_loadfile_buttons_15)
-        self.pushButton_47.setObjectName(u"pushButton_47")
-
-        self.verticalLayout_48.addWidget(self.pushButton_47)
-
-        self.pushButton_48 = QPushButton(self.example_loadfile_buttons_15)
-        self.pushButton_48.setObjectName(u"pushButton_48")
-
-        self.verticalLayout_48.addWidget(self.pushButton_48)
-
-        self.pushButton_49 = QPushButton(self.example_loadfile_buttons_15)
-        self.pushButton_49.setObjectName(u"pushButton_49")
-
-        self.verticalLayout_48.addWidget(self.pushButton_49)
-
-
-        self.horizontalLayout_36.addWidget(self.example_loadfile_buttons_15)
-
-
-        self.verticalLayout_18.addWidget(self.example_loadfile_container_5)
-
         self.load_scroll_area.setWidget(self.load_body)
 
         self.verticalLayout_17.addWidget(self.load_scroll_area)
@@ -1630,10 +1252,10 @@ class Ui_mainwindow(object):
         self.horizontalLayout_40.setContentsMargins(4, 0, 0, 0)
         self.label_76 = QLabel(self.frame_13)
         self.label_76.setObjectName(u"label_76")
-        font6 = QFont()
-        font6.setPointSize(14)
-        font6.setBold(True)
-        self.label_76.setFont(font6)
+        font5 = QFont()
+        font5.setPointSize(14)
+        font5.setBold(True)
+        self.label_76.setFont(font5)
 
         self.horizontalLayout_40.addWidget(self.label_76)
 
@@ -1703,11 +1325,11 @@ class Ui_mainwindow(object):
         self.horizontalLayout_23.setContentsMargins(0, 0, 0, 0)
         self.label_75 = QLabel(self.project_home_page)
         self.label_75.setObjectName(u"label_75")
-        sizePolicy8 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy8.setHorizontalStretch(1)
-        sizePolicy8.setVerticalStretch(1)
-        sizePolicy8.setHeightForWidth(self.label_75.sizePolicy().hasHeightForWidth())
-        self.label_75.setSizePolicy(sizePolicy8)
+        sizePolicy7 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy7.setHorizontalStretch(1)
+        sizePolicy7.setVerticalStretch(1)
+        sizePolicy7.setHeightForWidth(self.label_75.sizePolicy().hasHeightForWidth())
+        self.label_75.setSizePolicy(sizePolicy7)
         self.label_75.setMaximumSize(QSize(300, 300))
         self.label_75.setPixmap(QPixmap(u":/backgrounds/images/bgs/ExampleCaveMap.png"))
         self.label_75.setScaledContents(True)
@@ -1898,7 +1520,7 @@ class Ui_mainwindow(object):
         self.horizontalLayout_31.setObjectName(u"horizontalLayout_31")
         self.label_2 = QLabel(self.settings_header)
         self.label_2.setObjectName(u"label_2")
-        self.label_2.setFont(font6)
+        self.label_2.setFont(font5)
 
         self.horizontalLayout_31.addWidget(self.label_2, 0, Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignTop)
 
@@ -2212,37 +1834,6 @@ class Ui_mainwindow(object):
         self.label_25.setText(QCoreApplication.translate("mainwindow", u"Load Project", None))
         self.load_scroll_area.setProperty(u"style_ID", QCoreApplication.translate("mainwindow", u"borderless", None))
         self.load_body.setProperty(u"style_ID", QCoreApplication.translate("mainwindow", u"borderlessDark", None))
-
-        self.label_65.setText(QCoreApplication.translate("mainwindow", u"Mines of Moria", None))
-        self.label_66.setText(QCoreApplication.translate("mainwindow", u"4 attached files, 8 saved graphs", None))
-        self.label_67.setText(QCoreApplication.translate("mainwindow", u"Last accessed: 3/23/2025 at 5:50 PM", None))
-        self.pushButton_44.setText(QCoreApplication.translate("mainwindow", u"Load", None))
-        self.pushButton_45.setText(QCoreApplication.translate("mainwindow", u"Modify", None))
-        self.pushButton_46.setText(QCoreApplication.translate("mainwindow", u"Delete", None))
-        self.label_71.setText(QCoreApplication.translate("mainwindow", u"Blackreach Exploration V3", None))
-        self.label_72.setText(QCoreApplication.translate("mainwindow", u"4 attached files, 8 saved graphs", None))
-        self.label_73.setText(QCoreApplication.translate("mainwindow", u"Last accessed: 3/23/2025 at 5:50 PM", None))
-        self.pushButton_50.setText(QCoreApplication.translate("mainwindow", u"Load", None))
-        self.pushButton_51.setText(QCoreApplication.translate("mainwindow", u"Modify", None))
-        self.pushButton_52.setText(QCoreApplication.translate("mainwindow", u"Delete", None))
-        self.label_59.setText(QCoreApplication.translate("mainwindow", u"Blackreach Exploration V2", None))
-        self.label_60.setText(QCoreApplication.translate("mainwindow", u"4 attached files, 8 saved graphs", None))
-        self.label_61.setText(QCoreApplication.translate("mainwindow", u"Last accessed: 3/23/2025 at 5:50 PM", None))
-        self.pushButton_38.setText(QCoreApplication.translate("mainwindow", u"Load", None))
-        self.pushButton_39.setText(QCoreApplication.translate("mainwindow", u"Modify", None))
-        self.pushButton_40.setText(QCoreApplication.translate("mainwindow", u"Delete", None))
-        self.label_62.setText(QCoreApplication.translate("mainwindow", u"Probably Not Some Part of Mordor", None))
-        self.label_63.setText(QCoreApplication.translate("mainwindow", u"4 attached files, 8 saved graphs", None))
-        self.label_64.setText(QCoreApplication.translate("mainwindow", u"Last accessed: 3/23/2025 at 5:50 PM", None))
-        self.pushButton_41.setText(QCoreApplication.translate("mainwindow", u"Load", None))
-        self.pushButton_42.setText(QCoreApplication.translate("mainwindow", u"Modify", None))
-        self.pushButton_43.setText(QCoreApplication.translate("mainwindow", u"Delete", None))
-        self.label_68.setText(QCoreApplication.translate("mainwindow", u"Hoth", None))
-        self.label_69.setText(QCoreApplication.translate("mainwindow", u"4 attached files, 8 saved graphs", None))
-        self.label_70.setText(QCoreApplication.translate("mainwindow", u"Last accessed: 3/23/2025 at 5:50 PM", None))
-        self.pushButton_47.setText(QCoreApplication.translate("mainwindow", u"Load", None))
-        self.pushButton_48.setText(QCoreApplication.translate("mainwindow", u"Modify", None))
-        self.pushButton_49.setText(QCoreApplication.translate("mainwindow", u"Delete", None))
         self.load_back_button.setText(QCoreApplication.translate("mainwindow", u"Back", None))
         self.project_homepage.setProperty(u"style_ID", QCoreApplication.translate("mainwindow", u"borderless", None))
         self.project_homepage_container.setProperty(u"style_ID", QCoreApplication.translate("mainwindow", u"borderless", None))
