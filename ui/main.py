@@ -611,7 +611,7 @@ class MainWindow(QMainWindow):
                     except Exception as e:
                         print(f"Error in box plot plotting: {e}")
                         raise
-                                elif graph_type == "Cave Map":
+                elif graph_type == "Cave Map":
                     try:
                         self.heatmap_widget = Heatmap_Widget()
                             # If not already stored, ask the user
