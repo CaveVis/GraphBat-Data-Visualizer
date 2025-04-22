@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog
                                 QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem,
                                 QLineEdit, QPushButton, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem, QFormLayout)
 from PySide6.QtGui import QIntValidator, QPixmap
+from PySide6.QtCore import Qt, QSize
 class InputDialogue(QDialog):
     def __init__(self, parent=None, dataframe=None):
         super(InputDialogue, self).__init__(parent)
@@ -98,7 +99,6 @@ class InputDialogue(QDialog):
     }
         
 
-
 class SensorPicker(QDialog):
     def __init__(self, background_path, sensor_names, parent=None):
         super().__init__(parent)
@@ -108,25 +108,58 @@ class SensorPicker(QDialog):
         self.sensor_positions = {}
 
         self.image_label = QLabel()
-        self.pixmap = QPixmap(background_path)
+        self.original_pixmap = QPixmap(background_path)
+
+        # Set a fixed size for the dialog
+        self.setFixedSize(800, 600)
+        self.scale_pixmap()
+
         self.title_label = QLabel(f"Click on the image to set {self.sensor_names[0]}'s position")
 
         layout = QVBoxLayout(self)
         layout.addWidget(self.title_label)
         layout.addWidget(self.image_label)
 
+        # Connect mouse press event handler
+        self.image_label.mousePressEvent = self.get_click
+
+    def scale_pixmap(self):
+        """Scales the pixmap to fit the dialog while keeping its aspect ratio."""
+        max_size = QSize(780, 500)  # Leave some room for margins and title
+        scaled_pixmap = self.original_pixmap.scaled(
+            max_size, Qt.KeepAspectRatio, Qt.SmoothTransformation
+        )
+        self.image_label.setPixmap(scaled_pixmap)
+        self.image_label.setFixedSize(scaled_pixmap.size())
+
     def get_click(self, event):
         print(f"Mouse click at {event.pos()}, current_index: {self.current_index}")
         if self.current_index >= len(self.sensor_names):
             return
 
+        # Get click coordinates on the scaled image
         x = event.pos().x()
         y = event.pos().y()
-        sensor = self.sensor_names[self.current_index]
-        self.sensor_positions[sensor] = (x, y)
-        print(f"Set {sensor} to {(x, y)}")
 
-        self.current_index += 1  # Move to next sensor
+        # Calculate the ratio of scaled image to original
+        scaled_pixmap = self.image_label.pixmap()
+        scale_x = self.original_pixmap.width() / scaled_pixmap.width()
+        scale_y = self.original_pixmap.height() / scaled_pixmap.height()
+
+        # Scale the coordinates up to original image resolution
+        x_original = int(x * scale_x)
+        y_original = int(y * scale_y)
+
+        # Flip Y-axis to make (0, 0) at the bottom-left
+        y_flipped = self.original_pixmap.height() - y_original
+
+        # Save sensor position with flipped Y
+        sensor = self.sensor_names[self.current_index]
+        self.sensor_positions[sensor] = (x_original, y_flipped)
+        print(f"Set {sensor} to {(x_original, y_flipped)}")
+
+        # Move to next sensor
+        self.current_index += 1  
 
         # Update title or close
         if self.current_index == len(self.sensor_names):
@@ -134,13 +167,11 @@ class SensorPicker(QDialog):
         else:
             next_sensor = self.sensor_names[self.current_index]
             self.title_label.setText(f"Click on the image to set {next_sensor}'s position")
-    def showEvent(self, event):
-        super().showEvent(event)
-        self.image_label.setPixmap(self.pixmap)
-        self.image_label.mousePressEvent = self.get_click
+
 
     def get_positions(self):
         return self.sensor_positions
+
     
 class NewHeatMap(QDialog):
     def __init__(self, parent=None):
