@@ -753,7 +753,9 @@ class MainWindow(QMainWindow):
         )
         
         if success:
-            self.ui.main_body_stack.setCurrentWidget(self.ui.project_homepage)
+            self.ui.label_74.setText(project_name)
+            self.ui.label_76.setText(project_name)
+            self.navigate_to(self.ui.project_homepage)
             self.switchActiveTaskbar()
 
     def clear_project_widgets_only(self):
@@ -911,9 +913,13 @@ class MainWindow(QMainWindow):
             self.df = df
             self.sensor_states = sensor_states
             
+            #Set Project Name in Project's Taskbar
+            self.ui.label_74.setText(project_name)
+            #Set Project Name in Project's Header
+            self.ui.label_76.setText(project_name)
             # Switch to the project home page
             ProjectManager.set_project(project_name)
-            self.ui.main_body_stack.setCurrentWidget(self.ui.project_homepage)
+            self.navigate_to(self.ui.project_homepage)
             self.switchActiveTaskbar()
 
             # Display a success message
@@ -944,7 +950,7 @@ class MainWindow(QMainWindow):
         
         if ProjectManager.del_project(project['project_name']):
              # Successful deletion - update UI
-            self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)
+            self.navigate_to(self.ui.home_page)
             self.switchActiveTaskbar()
             
             project_frame = self.findChild(QFrame, f"projectFrame_{project['project_name']}")
@@ -1005,8 +1011,6 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Success", "Project updated successfully")
 
     def returnHome(self):
-        self.navigation_history = []
-        self.current_page = self.ui.home_page
         self.ui.main_body_stack.setCurrentWidget(self.ui.home_page)
         self.switchActiveTaskbar()
         
