@@ -322,7 +322,7 @@ class DataProcessor:
         project_name = ProjectManager.get_project()
         base_data_dir = os.path.join("Projects", project_name, "datafiles")
         premerge_data_dir = os.path.join(base_data_dir, "preprocessed_data")
-        merged_data_dir = os.path.join(base_data_dir, "preprocessed_data", "merged_dataset")
+        merged_data_dir = os.path.join(premerge_data_dir, "merged_dataset")
 
         #First pass: Read and preprocess all files
         merged_dfs = []
@@ -433,8 +433,7 @@ class DataProcessor:
             self.df = self.df.sort_index().dropna(axis=0)
         
             # Save the merged dataframe
-            raw_merged_filename = "preprocessed_merged_data.csv"
-            raw_merged_filepath = os.path.join(merged_data_dir, raw_merged_filename)
+            raw_merged_filepath = os.path.join(merged_data_dir, "preprocessed_merged_data.csv")
             self.df.to_csv(raw_merged_filepath)
             print(f"Saved merged data: {raw_merged_filepath}")
 

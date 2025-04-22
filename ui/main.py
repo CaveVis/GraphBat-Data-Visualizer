@@ -489,7 +489,7 @@ class MainWindow(QMainWindow):
                     legend.set_draggable(True)
                     self.canv.axes.set_xlabel('Date-Time', fontsize=16)
                     self.canv.axes.set_ylabel('Measured Temperature(°C)', fontsize=16)
-                    self.canv.axes.set_title('Temperature in Cave Over Time', fontsize=22, pad=20)
+                    self.canv.axes.set_title('Temperature in Cave Over Time', fontsize=18, pad=20)
 
                 elif graph_type == "Bar Graph":
                     try:
@@ -817,7 +817,6 @@ class MainWindow(QMainWindow):
             # Create a "no projects" message frame style
             no_projects_frame = QFrame()
             no_projects_frame.setObjectName("noProjectsFrame")
-            no_projects_frame.setStyleSheet(self.ui.example_loadfile_container.styleSheet())
             no_projects_frame.setFrameShape(QFrame.Shape.StyledPanel)
             no_projects_frame.setFrameShadow(QFrame.Shadow.Raised)
             
@@ -836,7 +835,6 @@ class MainWindow(QMainWindow):
             # Create container frame (same style as self.example_loadfile_container_)
             project_frame = QFrame(self.ui.load_body)
             project_frame.setObjectName(f"projectFrame_{project['project_name']}")
-            project_frame.setStyleSheet(self.ui.example_loadfile_container.styleSheet())
             project_frame.setFrameShape(QFrame.Shape.StyledPanel)
             project_frame.setFrameShadow(QFrame.Shadow.Raised)
 
@@ -851,8 +849,6 @@ class MainWindow(QMainWindow):
             sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
             sizePolicy.setHorizontalStretch(0)
             sizePolicy.setVerticalStretch(0)
-            sizePolicy.setHeightForWidth(self.ui.example_loadfile_info.sizePolicy().hasHeightForWidth())
-            info_frame.setStyleSheet(self.ui.example_loadfile_info.styleSheet())
             info_frame.setSizePolicy(sizePolicy)
             info_frame.setFrameShape(QFrame.Shape.StyledPanel)
             info_frame.setFrameShadow(QFrame.Shadow.Raised)
@@ -895,7 +891,6 @@ class MainWindow(QMainWindow):
             # Right side - Buttons (matches example_loadfile_buttons)
             buttons_frame = QFrame()
             buttons_frame.setObjectName(f"buttonsFrame_{project['project_name']}")
-            buttons_frame.setStyleSheet(self.ui.example_loadfile_buttons.styleSheet())
             buttons_frame.setFrameShape(QFrame.Shape.StyledPanel)
             buttons_frame.setFrameShadow(QFrame.Shadow.Raised)
             
@@ -906,21 +901,18 @@ class MainWindow(QMainWindow):
             # Load button (like pushButton_3)
             load_btn = QPushButton("Load")
             load_btn.setObjectName(f"loadBtn_{project['project_name']}")
-            load_btn.setStyleSheet(self.ui.pushButton_3.styleSheet())
             load_btn.clicked.connect(lambda _, p=project: self.handle_project_load(p))
             buttons_layout.addWidget(load_btn)
             
             # Edit button (like pushButton_4)
             edit_btn = QPushButton("Edit")
             edit_btn.setObjectName(f"editBtn_{project['project_name']}")
-            edit_btn.setStyleSheet(self.ui.pushButton_4.styleSheet())
             edit_btn.clicked.connect(lambda _, p=project: self.handle_project_edit(p))
             buttons_layout.addWidget(edit_btn)
             
             # Delete button (like pushButton_7)
             delete_btn = QPushButton("Delete")
             delete_btn.setObjectName(f"deleteBtn_{project['project_name']}")
-            delete_btn.setStyleSheet(self.ui.pushButton_7.styleSheet())
             delete_btn.clicked.connect(lambda _, p=project: self.handle_project_delete(p))
             buttons_layout.addWidget(delete_btn)
             
@@ -1064,7 +1056,7 @@ class MainWindow(QMainWindow):
                 old_name=project['project_name'],
                 new_name=self.edit_name_input.text().strip(),
                 new_description=self.edit_desc_input.toPlainText().strip(),
-                data_processor=self.data_processor
+                data_processor=self.data_processorpr
             )
             
             if success:
