@@ -9,7 +9,7 @@ from PySide6 import QtSvg
 from PySide6.QtCore import Qt, QSettings
 from PySide6.QtGui import QIcon, QFont
 from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog, QWidget,
-                                QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem, QPlainTextEdit, QDateTimeEdit,
+                                QVBoxLayout, QHBoxLayout, QLabel, QGroupBox, QComboBox, QListWidget, QAbstractItemView, QListWidgetItem,
                                 QLineEdit, QPushButton, QPlainTextEdit, QSizePolicy, QDateTimeEdit, QFrame, QDialogButtonBox, QMessageBox, QDialog)
 from mainwindow import Ui_mainwindow
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg, NavigationToolbar2QT as Navi
@@ -19,9 +19,7 @@ import src.data_processing.data_processor as data_processor
 from src.data_processing.data_processor import AnomalyDialog
 from src.project_management.project_manager import ProjectManager
 from src.draw_tool import PaintGrid
-from src.heatmap_internal.heatmap_helpers.Heatmap_Widget import Heatmap_Widget
-from src.heatmap_internal.heatmap_helpers.heatmap_utils import dist_linear, dijkstras, get_sdev_from_dataframe, load_cave_map
-from src.heatmap_internal.heatmap_helpers.input_dialogue import * 
+
 #Canvas class
 class MatplotlibCanvas(FigureCanvasQTAgg):
     def __init__(self, parent=None,width=5, height = 5, dpi = 120):
@@ -130,7 +128,7 @@ class MainWindow(QMainWindow):
         self.df = pd.DataFrame()  # Initialize empty DataFrame
         self.sensor_states = {}
         self.cave_map_background_path = None
-        self.heatmap_widget = Heatmap_Widget()
+
         # Create DataProcessor instance
         self.data_processor = data_processor.DataProcessor(parent=self)
 
@@ -417,13 +415,19 @@ class MainWindow(QMainWindow):
                 if not self.df.empty:
                     processed_merged_filename = "processed_merged_data.csv"
                     processed_merged_filepath = os.path.join(merged_data_dir, processed_merged_filename)
-                    self.df.to_csv(processed_merged_filepath)     
+                    self.df.to_csv(processed_merged_filepath)
+
+                #Filters based on time range set
+                if hasattr(self, 'start_t') and hasattr(self, 'end_t'):
+                    filtered_df = self.df[(self.df.index >= self.start_t) & (self.df.index <= self.end_t)]
+                else:
+                    filtered_df = self.df.copy()
 
                 if graph_type == "Line Graph":
                     #First plot all clean_data points regardless of anomaly status
-                    for c in self.df.columns:
-                        if not self.df[c].empty:
-                            lines = self.canv.axes.plot(self.df.index, self.df[c], label = c)
+                    for c in filtered_df.columns:
+                        if not filtered_df[c].empty:
+                            lines = self.canv.axes.plot(filtered_df.index, filtered_df[c], label = c)
                             mplcursors.cursor(lines)
 
 
@@ -446,20 +450,19 @@ class MainWindow(QMainWindow):
                                     print(f"Error plotting outliers: {e}")
 
                     # Determine the range of values for the x-axis
-                    x_min = self.df.index.min()
-                    x_max = self.df.index.max()
+                    x_min = filtered_df.index.min()
+                    x_max = filtered_df.index.max()
                     x_range = x_max - x_min
 
                     # Set custom x-axis tick marks
                     x_ticks = [x_min + pd.Timedelta(seconds=i * (x_range.total_seconds() / 9)) for i in range(10)]
                     x_ticks = [tick.round('S') for tick in x_ticks]  # Round to nearest second
 
-                    self.canv.axes.set_xticks(x_ticks)
-                    self.canv.axes.set_xlim(x_min, x_max)
+
 
                     # Determine the range of values for each column
-                    y_min = self.df.min().min()
-                    y_max = self.df.max().max()
+                    y_min = filtered_df.min().min()
+                    y_max = filtered_df.max().max()
                     y_range = y_max - y_min
                     # Set custom y-axis tick marks
                     y_ticks = [y_min + i * (y_range / 9) for i in range(10)]
@@ -467,8 +470,13 @@ class MainWindow(QMainWindow):
 
                     y_ticks = [round(tick * 2) / 2 for tick in y_ticks]  # Round to nearest 0.5
 
-                    self.canv.axes.set_yticks(y_ticks)
-                    self.canv.axes.set_ylim(y_min, y_max)
+                    #self.canv.axes.set_xticks(x_ticks)
+                    #self.canv.axes.set_xlim(x_min, x_max)
+                    #self.canv.axes.set_yticks(y_ticks)
+                    #self.canv.axes.set_ylim(y_min, y_max)
+
+                    self.canv.axes.tick_params(axis='x', rotation=45, labelsize=10)
+                    self.canv.axes.tick_params(axis='y', labelsize=10)
 
                     # Rotate and adjust x-axis labels with larger font
                     plt.rcParams.update({'font.size': 10})  # Set base font size
@@ -601,105 +609,70 @@ class MainWindow(QMainWindow):
                         print(f"Error in box plot plotting: {e}")
                         raise
                 elif graph_type == "Cave Map":
+                    print("Setting up Cave Map (PaintGrid)...")
+                    # If not already stored, ask the user
+                    if not self.cave_map_background_path:
+                        # Use PySide6 static method syntax
+                        filePath, _ = QFileDialog.getOpenFileName(self, "Select Cave Map Image", "", "Images (*.png *.jpg *.bmp *.jpeg)")
+                        if filePath:
+                            self.cave_map_background_path = filePath
+                        else:
+                            QMessageBox.warning(self, "Cave Map", "No background image selected. Cannot display Cave Map.")
+
+                            return # Stop if no image is provided
+
+
                     try:
-                        self.heatmap_widget = Heatmap_Widget()
-                            # If not already stored, ask the user
-                        if not self.cave_map_background_path:
-                            # Use PySide6 static method syntax
-                            filePath, _ = QFileDialog.getOpenFileName(self, "Select Cave Map Image", "", "Images (*.png *.jpg *.jpeg)")
-                            if filePath:
-                                self.cave_map_background_path = filePath
-                            else:
-                                QMessageBox.warning(self, "Cave Map", "No background image selected. Cannot display Cave Map.")
+                        initial_brush_size = 5 
+                        self.paint_grid_widget = PaintGrid(brush_size=initial_brush_size, background=self.cave_map_background_path)
+                        self.paint_grid_widget.setObjectName("paintGridWidget") 
+                        self.ui.verticalLayout_55.addWidget(self.paint_grid_widget)
 
-                                return # Stop if no image is provided
-                        if self.heatmap_widget.alpha == None:
-                            inputheatmap = InputDialogue(dataframe=self.df)
-                            return_code = inputheatmap.exec()
-                            if return_code == QDialog.Accepted:
-                                input = inputheatmap.output
+                    except Exception as e:
+                        print(f"Error creating or adding PaintGrid: {e}")
+                        traceback.print_exc()
+                        QMessageBox.critical(self, "Cave Map Error", f"Failed to display Cave Map: {e}")
 
-                            else:
-                                print("Dialog Rejected or Closed.")
-                                user_input_data = None 
-                            sensor_positions = input["sensor_positions"]
-                            sensor_names = self.df.columns.to_list()
-                            mask_ = input["mask"]
-                            dist_lin = {sensor: dist_linear(sensor_positions[sensor], mask_) for sensor in sensor_positions}
-                            dist_dijk = {sensor: dijkstras(sensor_positions[sensor], mask_) for sensor in sensor_positions}
-                            mode_select = input["mode"]
-                            start = input["start"]
-                            end = input["end"]
-                            skip = input["skip"]
-                            sensor_distances = dist_lin if mode_select == 0 else dist_dijk
-                            std_dev, avg_val = get_sdev_from_dataframe(self.df)
-                            sensor_x = [int(sensor_positions[s][0]) for s in sensor_names]
-                            sensor_y = [int(sensor_positions[s][1]) for s in sensor_names]
-                            self.heatmap_widget.plot_data(
-                                dfs=self.df, 
-                                timestamps=self.df.index.to_list()[start:end:skip],
-                                sensor_x=sensor_x,  
-                                sensor_y=sensor_y,  
-                                cave_map=load_cave_map(self.cave_map_background_path),   
-                                mask_=mask_,                              
-                                sensor_distances=sensor_distances,
-                                sensor_names=self.df.columns.to_list(),
-                                s_dev=std_dev,
-                                avg=avg_val,
-                                sdev_steps=2,
-                                alpha=1,
-                                c_map_name='jet'
-                            )
-                            self.heatmap_widget.canvas.draw()
-                        else: 
-                            dialog = NewHeatMap()
-                            if dialog.exec() == QDialog.rejected:
-                                inputheatmap = InputDialogue(dataframe=self.df)
-                                return_code = inputheatmap.exec()
-                                if return_code == QDialog.Accepted:
-                                    input = inputheatmap.output
-                                else:
-                                    print("Dialog Rejected or Closed.")
-                                    user_input_data = None 
-                                sensor_positions = input["sensor_positions"]
-                                sensor_names = self.df.columns.to_list()
-                                mask_ = input["mask"]
-                                dist_lin = {sensor: dist_linear(sensor_positions[sensor], mask_) for sensor in sensor_positions}
-                                dist_dijk = {sensor: dijkstras(sensor_positions[sensor], mask_) for sensor in sensor_positions}
-                                mode_select = input["mode"]
-                                start = input["start"]
-                                end = input["end"]
-                                skip = input["skip"]
-                                sensor_distances = dist_lin if mode_select == 0 else dist_dijk
-                                std_dev, avg_val = get_sdev_from_dataframe(self.df)
-                                sensor_x, sensor_y = get_sx_sy(sensor_positions, sensor_names)
-
-                                self.heatmap_widget.plot_data(
-                                    dfs=self.df, 
-                                    timestamps=self.df.index.to_list()[start:end:skip],
-                                    sensor_x=sensor_x,  
-                                    sensor_y=sensor_y,  
-                                    cave_map=load_cave_map(self.cave_map_background_path),   
-                                    mask_=mask_,                              
-                                    sensor_distances=sensor_distances,
-                                    sensor_names=self.df.columns.to_list(),
-                                    s_dev=std_dev,
-                                    avg=avg_val,
-                                    sdev_steps=2,
-                                    alpha=1,
-                                    c_map_name='jet'
-                                )
-
-                                self.heatmap_widget.canvas.draw()
+                      
+                        """
+                        #Pre-work
+                        sensor_positions = {}
+                        sensor_names = self.df.columns.to_list()
+                    
+                        ## Implement Drag-n-drop or select-n-click eventually 
+                        for sensor in sensor_names:
+                            sensor_positions[sensor] = (0,0)    ## Can use input box to get x and y for now
+                
+                        mask_ = None ###################################  GET FROM DRAWTOOL 
+                        dist_lin = {sensor: self.heatmap_widget.dist_linear(sensor_positions[sensor], mask_) for sensor in sensor_positions}
+                        dist_dijk = {sensor: self.heatmap_widget.dijkstras(sensor_positions[sensor], mask_) for sensor in sensor_positions}
+                        mode_select = 1 ################################## Should be a check box
+                        sensor_distances = dist_lin if mode_select == 0 else dist_dijk
+                        std_dev, avg_val = self.heatmap_widget.get_sdev_from_dataframe(self.df)
+                        sensor_x, sensor_y = self.heatmap_widget.get_sx_sy(sensor_positions, sensor_names)
+                        # Call the plotting function with the required arguments
+                        self.heatmap_widget.plot_data(
+                            dfs=self.df, 
+                            timestamps=self.df.index.to_list(),
+                            sensor_x=sensor_x,  ## need get from button input (buttons?  pop ups?  idk.  this might suck )
+                            sensor_y=sensor_y,  ## need get from button input
+                            cave_map=self.heatmap_widget.load_cave_map(),   ## this needs to be the path to the file they uploaded as map
+                            mask_=mask_,                               ## get from file?  like a file explorer maybe?  
+                            sensor_distances=sensor_distances,
+                            sensor_names=self.df.columns.to_list(),
+                            s_dev=std_dev,
+                            avg=avg_val,
+                            sdev_steps=2,
+                            alpha=1,
+                            c_map_name='jet'
+                        )
+                    """
                     except Exception as e:
                         print(f"Error displaying cave map: {e}")
                         raise
 
-                if graph_type == "Cave Map":
-                    self.ui.verticalLayout_55.addWidget(self.heatmap_widget)  
-                else: 
-                    self.ui.verticalLayout_55.addWidget(toolbar)
-                    self.ui.verticalLayout_55.addWidget(self.canv)
+                self.canv.draw()
+                self.canv.figure.tight_layout()
 
             except Exception as e:
                 print("Plotting error:", e)
@@ -711,11 +684,10 @@ class MainWindow(QMainWindow):
                 print("Plotting error:", e)
                 traceback.print_exc()
 
-        if graph_type == "Cave Map":
-            self.ui.verticalLayout_55.addWidget(self.heatmap_widget)  
-        else: 
-            self.ui.verticalLayout_55.addWidget(toolbar)
-            self.ui.verticalLayout_55.addWidget(self.canv)
+        # Add both to the layout
+        #VerticalLayout 
+        self.ui.verticalLayout_55.addWidget(toolbar)
+        self.ui.verticalLayout_55.addWidget(self.canv)
 
     def setDyslexicFont(self, is_dyslexic):
         self.app_settings.setValue("is_dyslexic", is_dyslexic)
