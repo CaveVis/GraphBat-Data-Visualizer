@@ -210,6 +210,7 @@ class DataProcessor:
         self.parent = parent
         self.sensor_states = {}
         self.filenames = []
+        self.imgfile = []
         self.c_column_selection = {}
         self.rename_dict = {}
         self.df = pd.DataFrame()
@@ -258,13 +259,17 @@ class DataProcessor:
         return self.filenames
     
     def getFileImage(self):
-         #Will get file address of img file and read it
-        file,_ = QFileDialog.getOpenFileName(filter = "Images (*.png *.xpm *.jpg)")
-        if file:
-            self.imgfile = file
-            print("Files :", self.imgfile)
+        # Will get file address of img file and read it
+        files, _ = QFileDialog.getOpenFileNames(filter="Images (*.png *.xpm *.jpg)")
+        if files:
+            if not hasattr(self, 'imgfiles'):
+                self.imgfiles = []
+            self.imgfiles.extend(files)
+            print("Image files:", self.imgfiles)
         else:
             print("No files selected.")
+        
+        return self.imgfiles if hasattr(self, 'imgfiles') else []
 
     def readData(self, project=None):
     

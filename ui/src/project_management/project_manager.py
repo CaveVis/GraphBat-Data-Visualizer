@@ -238,13 +238,25 @@ class ProjectManager:
                 raw_data_path = os.path.join(project_folder, "datafiles", "raw_data")
                 for file_path in data_processor.filenames:
                     try:
-                        filename = os.path.basename(file_path)
-                        dest_path = os.path.join(raw_data_path, filename)
-                        shutil.copy2(file_path, dest_path)
+                        data_filename = os.path.basename(file_path)
+                        data_dest_path = os.path.join(raw_data_path, data_filename)
+                        shutil.copy2(file_path, data_dest_path)
                     except Exception as e:
                         print(f"Error saving {file_path}: {str(e)}")
                         traceback.print_exc()
 
+            # Save cave images if they exist
+            if hasattr(data_processor, 'imgfiles') and data_processor.imgfiles:
+                img_dir_path = os.path.join(project_folder, "datafiles", "images")
+                for img_file_path in data_processor.imgfiles:
+                    try:
+                        img_filename = os.path.basename(img_file_path)
+                        img_dest_path = os.path.join(img_dir_path, img_filename)
+                        shutil.copy2(img_file_path, img_dest_path)
+                    except Exception as e:
+                        print(f"Error saving image {img_file_path}: {str(e)}")
+                        traceback.print_exc()
+                        
             cls.set_project(project_name)
             return True
             
