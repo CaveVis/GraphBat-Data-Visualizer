@@ -615,15 +615,19 @@ class MainWindow(QMainWindow):
                     try:
                         self.heatmap_widget = Heatmap_Widget()
                             # If not already stored, ask the user
-                        if not self.cave_map_background_path:
-                            # Use PySide6 static method syntax
-                            filePath, _ = QFileDialog.getOpenFileName(self, "Select Cave Map Image", "", "Images (*.png *.jpg *.jpeg)")
-                            if filePath:
-                                self.cave_map_background_path = filePath
-                            else:
-                                QMessageBox.warning(self, "Cave Map", "No background image selected. Cannot display Cave Map.")
 
-                                return # Stop if no image is provided
+                        if project_name is None:
+                            project_name = ProjectManager.get_project()
+        
+                        if project_name is None:
+                            QMessageBox.warning(
+                                self,
+                                "No Project Loaded",
+                                "Please load a project before plotting data."
+                            )
+                            return
+
+                            
                         if self.heatmap_widget.alpha == None:
                             inputheatmap = InputDialogue(dataframe=self.df)
                             return_code = inputheatmap.exec()
@@ -642,6 +646,7 @@ class MainWindow(QMainWindow):
                             start = input["start"]
                             end = input["end"]
                             skip = input["skip"]
+                            cave_map = input["cave_map"]
                             sensor_distances = dist_lin if mode_select == 0 else dist_dijk
                             std_dev, avg_val = get_sdev_from_dataframe(self.df)
                             sensor_x = [int(sensor_positions[s][0]) for s in sensor_names]
@@ -651,7 +656,7 @@ class MainWindow(QMainWindow):
                                 timestamps=self.df.index.to_list()[start:end:skip],
                                 sensor_x=sensor_x,  
                                 sensor_y=sensor_y,  
-                                cave_map=load_cave_map(self.cave_map_background_path),   
+                                cave_map_path=cave_map,   
                                 mask_=mask_,                              
                                 sensor_distances=sensor_distances,
                                 sensor_names=self.df.columns.to_list(),
