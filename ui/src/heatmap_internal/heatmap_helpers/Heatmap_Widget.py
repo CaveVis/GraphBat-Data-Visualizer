@@ -60,7 +60,7 @@ class Heatmap_Widget(QWidget):
         self.sdev_steps = None
         self.alpha = None
 
-    def plot_data(self, dfs, timestamps, sensor_x, sensor_y, cave_map, mask_,
+    def plot_data(self, dfs, timestamps, sensor_x, sensor_y, cave_map_path, mask_,
               sensor_distances, sensor_names, s_dev, avg, sdev_steps=2,
               alpha=1, c_map_name='jet'):
         self.qslider.setValue(0)
@@ -71,9 +71,9 @@ class Heatmap_Widget(QWidget):
         self.qslider.setMaximum(len(self.timestamps) - 1)
         self.sensor_x = sensor_x
         self.sensor_y = sensor_y
-        self.cave_map = cave_map
-        self.x_size = cave_map.shape[1]
-        self.y_size = cave_map.shape[0]
+        self.cave_map = Image.open(cave_map_path)
+        self.x_size = self.cave_map.width
+        self.y_size = self.cave_map.height
         self.c_map = mpl.colormaps.get_cmap(c_map_name)
         self.c_map.set_bad(color=(0, 0, 0, 0))  # NaN transparency
         self.mask_ = mask_
