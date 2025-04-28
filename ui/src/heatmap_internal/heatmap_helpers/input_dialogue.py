@@ -10,17 +10,44 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QSizeGrip, QFileDialog
                                 QLineEdit, QPushButton, QDialogButtonBox, QMessageBox, QDialog, QTableWidget,QHeaderView, QTableWidgetItem, QFormLayout)
 from PySide6.QtGui import QIntValidator, QPixmap
 from PySide6.QtCore import Qt, QSize
+from src.project_management.project_manager import ProjectManager 
+import glob
+
 class InputDialogue(QDialog):
     def __init__(self, parent=None, dataframe=None):
+        
+        self.proj_name = ProjectManager.get_project()
         super(InputDialogue, self).__init__(parent)
         self.setWindowTitle("Heatmap Input")
         self.resize(600, 400)
         
+
+
+        self.project_name = ProjectManager.get_project()
+        
+        if self.project_name is None:
+            QMessageBox.warning(
+                self,
+                "No Project Loaded",
+                "Please load a project before plotting data."
+            )
+            return
+   
+
+        base_data_dir = os.path.join("Projects", self.project_name, "datafiles")
+        self.image_data_dir = os.path.join(base_data_dir, "images")                                           ### create new folder in Proj Man for this 
+
+        
         # Main layout
         self.layout = QFormLayout(self)
         self.dataframe = dataframe
-        self.background_path = None
+
         # Create widgets
+
+        
+        self.image_combo = QComboBox()
+        self.populate_image_combo()
+        self.image_combo.currentIndexChanged.connect(self.update_background_path)
         self.sensor_button = QPushButton("Set Sensor Locations", clicked = self.set_sensor)
         self.set_mask_button = QPushButton("Select Mask", clicked = self.set_mask)
         self.sdev_button = QComboBox()
@@ -41,6 +68,7 @@ class InputDialogue(QDialog):
         self.cancel_button = QPushButton("Cancel", clicked = self.cancel)
         self.submit_button = QPushButton("Submit", clicked = self.submit)    
 
+        self.layout.addRow("Select Image:", self.image_combo)
         self.layout.addRow("Colormap Scale (Standard Deviations from mean):", self.sdev_button)
         self.layout.addRow("Start Index:", self.index_start)
         self.layout.addRow("End Index:", self.index_end)
@@ -50,11 +78,34 @@ class InputDialogue(QDialog):
         self.layout.addRow(self.set_mask_button)
         self.layout.addRow(self.submit_button, self.cancel_button)                      
         self.sensor_positions = {}
-    def set_sensor(self):
-        self.background_path, _ = QFileDialog.getOpenFileName(self, "Select Background Image", "", "Images (*.png *.jpg)")
-        if not self.background_path:
-            return
 
+
+    def populate_image_combo(self):
+        if not os.path.exists(self.image_data_dir):
+            return
+        
+        # Find all image files
+        image_extensions = ['*.png', '*.jpg', '*.jpeg']
+        files = []
+        for ext in image_extensions:
+            files.extend(glob.glob(os.path.join(self.image_data_dir, ext)))
+
+        files.sort()  # Optional: alphabetically sort
+
+        # Store full paths inside the combo's "userData"
+        for file in files:
+            filename = os.path.basename(file)
+            self.image_combo.addItem(filename, userData=file)
+        
+        # Default selection
+        if files:
+            self.background_path = files[0]
+
+    def update_background_path(self, index):
+        if index >= 0:
+            self.background_path = self.image_combo.itemData(index)
+
+    def set_sensor(self):
         sensor_names = self.dataframe.columns  # skip index/timestamp
         picker = SensorPicker(self.background_path, sensor_names, self)
         picker.exec()
@@ -75,11 +126,11 @@ class InputDialogue(QDialog):
             # Launch draw tool as a window
             from src.draw_tool import PaintGrid  
 
-            draw_win = PaintGrid(background_path=self.background_path)  # set this earlier
+            draw_win = PaintGrid(background_path=self.background_path) 
             draw_win.exec()
             self.mask = draw_win.get_mask()
         else:
-            mask_path, _ = QFileDialog.getOpenFileName(self, "Select Mask File", "", "NPY Files (*.npy)")
+            mask_path, _ = QFileDialog.getOpenFileName(self, "Select Mask File", self.image_data_dir, "NPY Files (*.npy)")
             if mask_path:
                 self.mask = np.load(mask_path)
 
@@ -95,7 +146,8 @@ class InputDialogue(QDialog):
         "end": int(self.index_end.text()),
         "skip": int(self.index_skip.text()),
         "mode": self.set_mode.currentText(),
-        "mask": getattr(self, "mask", None)
+        "mask": getattr(self, "mask", None),
+        "cave_map" : os.path.join(self.image_data_dir, self.image_combo.currentText())
     }
         
 
@@ -179,7 +231,7 @@ class NewHeatMap(QDialog):
         self.setWindowTitle("Heatmap Option")
 
         # Main question
-        question_label = QLabel("Load the pre-existing heatmap?")
+        question_label = QLabel("Load the pre-existing heatmap?")                    #### currently not functional
 
         yes_button = QPushButton("Yes")
         no_button = QPushButton("No")
