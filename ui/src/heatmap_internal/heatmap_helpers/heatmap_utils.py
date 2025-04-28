@@ -213,3 +213,4 @@ def scale(im, nR, nC):
   nC0 = len(im[0])  # source number of columns 
   return [[ im[int(nR0 * r / nR)][int(nC0 * c / nC)]  
              for c in range(nC)] for r in range(nR)]
+    
