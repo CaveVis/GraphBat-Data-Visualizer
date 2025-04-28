@@ -22,6 +22,19 @@ h1, h2, h3
     color: #AD6300;
 }
 
+.header
+{
+    background-color: rgba(37, 32, 19, 0.9);
+    padding: 1%;
+    font-size: 2vw;
+    font-family: "Franklin Gothic Medium", "Verdana", sans-serif;
+    color: #AD6300;
+    border-radius: 10px;
+    box-shadow: 0 10px 16px 0 rgba(0, 0, 0, 0.4);
+    margin: auto;
+    width: 90%;
+}
+
 .subtitle
 {
     background-color: #1A110A;
@@ -31,6 +44,7 @@ h1, h2, h3
     border-radius: 10px;
     padding: 0px 10px 0px 10px;
     box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+    margin: auto;
 }
 
 .floating_header
@@ -102,6 +116,12 @@ table
     margin: auto;
     width: 100%;
     table-layout: fixed;
+    vertical-align: top;
+}
+
+td
+{
+    vertical-align: top;
 }
 
 .td_profile
