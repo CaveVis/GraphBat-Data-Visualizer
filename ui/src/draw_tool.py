@@ -1,12 +1,13 @@
 from PySide6.QtWidgets import (QWidget, QDialog, QPushButton, QVBoxLayout,
-                               QHBoxLayout, QLabel, QLineEdit, QApplication) 
+                               QHBoxLayout, QLabel, QLineEdit, QApplication, QMessageBox) 
 from PySide6.QtGui import (QPainter, QColor, QMouseEvent, QImage, QPixmap,
                            QIntValidator)
 from PySide6.QtCore import Qt, QRect, QSize, QPoint, Signal 
 
 import numpy as np
 import sys 
-
+import os
+from src.project_management.project_manager import ProjectManager
 # Define colors outside class for clarity
 COLOR_TRANSPARENT = QColor.fromRgbF(0.0, 0.0, 0.0, 0.0)
 COLOR_DRAW = QColor.fromRgbF(1.0, 0.0, 0.0, 0.5) # Semi-transparent red
@@ -30,6 +31,7 @@ class DrawingCanvas(QWidget):
         self.setMouseTracking(True)
         # Set a minimum size hint based on the image
         self.max_canvas_size = QSize(800, 600)  # Cap canvas size to 800x600 or anything reasonable
+
 
       
 
@@ -151,6 +153,21 @@ class PaintGrid(QDialog):
         self.brush_size = brush_size
         self.draw_value = 1 # 1 for drawing, 0 for erasing
         self.output_mask = None # To store the final mask
+        self.background_path = background_path
+        self.project_name = ProjectManager.get_project()
+        
+        if self.project_name is None:
+            QMessageBox.warning(
+                self,
+                "No Project Loaded",
+                "Please load a project before plotting data."
+            )
+            return
+        #project_name = ProjectManager.get_project()
+
+        self.base_data_dir = os.path.join("Projects", self.project_name, "datafiles")
+        self.image_data_dir = os.path.join(self.base_data_dir, "images")                                           ### create new folder in Proj Man for this 
+
 
         try:
             background_pixmap = QPixmap(background_path) if background_path else QPixmap()
@@ -204,7 +221,7 @@ class PaintGrid(QDialog):
         # Set Initial Dialog Size 
         if not background_pixmap.isNull():
             screen_size = QApplication.primaryScreen().availableSize()
-            screen_padding = QSize(100, 150)  # Account for window chrome + controls
+            screen_padding = QSize(100, 150)  
             available_size = screen_size - screen_padding
 
             # Preserve image aspect ratio
@@ -256,7 +273,6 @@ class PaintGrid(QDialog):
         self.canvas.clear_drawing()
 
     def get_mask(self) -> np.ndarray | None:
-        """Generates the mask from the drawing_image."""
         target_image = self.canvas.drawing_image
         if not target_image or target_image.isNull():
             print("Error: Drawing image is invalid.")
@@ -314,8 +330,10 @@ class PaintGrid(QDialog):
             
              self.accept()
              mask = np.flipud(mask) 
+             background_name = os.path.splitext(os.path.basename(self.background_path))[0]
+             path = os.path.join(self.image_data_dir, background_name + ".npy")
+             np.save(path, mask)
              self.output=mask
-             np.save("my_array.npy", mask)   ################### This needs to go to project files 
              return mask
 
         except Exception as e:
@@ -331,7 +349,9 @@ class PaintGrid(QDialog):
 
              self.accept()
              mask = np.flipud(mask) 
+             background_name = os.path.splitext(os.path.basename(self.background_path))[0]
+             path = os.path.join(self.image_data_dir, background_name + ".npy")
+             np.save(path, mask)
              self.output = mask
-             np.save("my_array.npy", mask)   ################### This needs to go to project files 
              return mask
 
