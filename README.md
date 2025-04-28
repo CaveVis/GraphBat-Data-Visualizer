@@ -23,11 +23,13 @@ GraphBat provides a way to visualize sensor data taken with individual sensors w
 * **Packages:** The following Python packages are required. We recommend using the `pip` install manager.
     ```bash
     pip install matplotlib
+    pip install pandas
     pip install pyqt5
     pip install pyside6
     pip install numpy
     pip install numba
     pip install scipy
+    pip install pillow
     ```
 * **System Resources (Recommended):**
     * RAM: >4GB available
