@@ -2,7 +2,7 @@
 
 Welcome to GraphBat!
 
-GraphBat is an **open-sourced**, **python based**, data visualization app made for speleologists.
+GraphBat is an **open-sourced**, **Python based**, data visualization app made for speleologists.
 
 ## Overview
 
